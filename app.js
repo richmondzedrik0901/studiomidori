@@ -439,8 +439,8 @@ window.changeDrinkAddOnQty = function (instanceKey, addOnId, delta) {
 // ── Delivery Location Map Picker (Leaflet) ───────────────────────────
 let deliveryMap = null;
 let deliveryMarker = null;
-const DEFAULT_MAP_CENTER = [14.5995, 120.9842]; // Manila, Philippines default center
-const DEFAULT_MAP_ZOOM = 13;
+const DEFAULT_MAP_CENTER = [17.5951, 120.6185]; // Bangued, Abra, Philippines
+const DEFAULT_MAP_ZOOM = 15;
 
 function initDeliveryMap() {
   if (deliveryMap) {
