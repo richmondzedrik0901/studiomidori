@@ -18,9 +18,22 @@ let addOns = {};          // loaded from Firebase only
 let selectedCategory = 'all'; // 'all', 'matcha', 'hojicha'
 
 const state = {
-  items: {}, // { [productId]: { qty, matcha, sweetness, addOns: [{ id, name, price }] } }
+  // keyed by instanceKey = `${productId}__${n}`, value = { productId, instanceIndex, matcha, sweetness, addOns[] }
+  items: {},
   deliveryType: 'pickup',
 };
+
+// Returns all instance keys for a given productId, sorted
+function getProductInstances(productId) {
+  return Object.keys(state.items)
+    .filter(k => state.items[k].productId === productId)
+    .sort();
+}
+
+// How many instances does a product have?
+function getProductQty(productId) {
+  return getProductInstances(productId).length;
+}
 
 // ── DOM Helpers ──────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -101,10 +114,106 @@ function buildProductList() {
 
   const activeAddOnsList = Object.values(addOns).filter(a => a.available !== false);
 
+  // ── Build add-ons HTML for a specific instance ──────────────────────
+  function buildAddOnsHtml(p, instanceKey) {
+    if (activeAddOnsList.length === 0) return '';
+    const selectedAddOns = state.items[instanceKey]?.addOns || [];
+    const isHojichaProduct = p.category === 'hojicha';
+
+    const filteredAddOns = activeAddOnsList.filter(a => {
+      if (isHojichaProduct) {
+        if (a.id === 'extra-shot') return false;
+        if (a.id !== 'extra-matcha-gram' && a.name.toLowerCase().includes('matcha')) return false;
+      } else {
+        if (a.name.toLowerCase().includes('hojicha')) return false;
+      }
+      return true;
+    });
+
+    const pillsHtml = filteredAddOns.map(a => {
+      const isQty = a.type === 'quantity' || a.id.includes('gram') ||
+        (a.name && a.name.toLowerCase().includes('per gram')) ||
+        (a.name && a.name.toLowerCase().includes('matcha'));
+      const selectedItem = selectedAddOns.find(item => item.id === a.id);
+      const currentGramQty = selectedItem ? (selectedItem.qty || 1) : 0;
+      const isChecked = Boolean(selectedItem);
+      const displayName = (isHojichaProduct && a.id === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : a.name;
+      const safeKey = instanceKey.replace(/'/g, "\\'");
+
+      if (isQty) {
+        return `
+          <div class="addon-pill quantity-addon ${currentGramQty > 0 ? 'is-active' : ''}" id="addon-ctrl-${instanceKey}-${a.id}">
+            <span>${displayName}</span>
+            <span class="addon-price-tag">+₱${a.price}/g</span>
+            <div class="addon-stepper">
+              <button type="button" class="addon-stepper-btn"
+                onclick="changeDrinkAddOnQty('${safeKey}', '${a.id}', -1)"
+                ${currentGramQty === 0 ? 'disabled' : ''} title="Decrease grams">−</button>
+              <span class="addon-stepper-qty" id="addon-qty-${instanceKey}-${a.id}">${currentGramQty}g</span>
+              <button type="button" class="addon-stepper-btn"
+                onclick="changeDrinkAddOnQty('${safeKey}', '${a.id}', 1)"
+                title="Add more grams">+</button>
+            </div>
+          </div>`;
+      }
+
+      return `
+        <label class="addon-pill">
+          <input type="checkbox" ${isChecked ? 'checked' : ''}
+            onchange="toggleDrinkAddOn('${safeKey}', '${a.id}')" />
+          <span>${a.name}</span>
+          <span class="addon-price-tag">+₱${a.price}</span>
+        </label>`;
+    }).join('');
+
+    return `
+      <div class="addons-section">
+        <div class="addons-label">✨ Optional Add-ons</div>
+        <div class="addons-grid">${pillsHtml}</div>
+      </div>`;
+  }
+
+  // ── Render one instance panel (a single cup) ─────────────────────────
+  function renderInstancePanel(p, instanceKey, instanceIndex, totalInstances) {
+    const inst = state.items[instanceKey];
+    if (!inst) return '';
+    const currentMatcha = inst.matcha || (matchaChoices[0] || 'Classic');
+    const currentSweetness = inst.sweetness || '100%';
+    const safeKey = instanceKey.replace(/'/g, "\\'");
+    const label = totalInstances > 1 ? `Cup ${instanceIndex + 1}` : 'Your Cup';
+    const canRemove = totalInstances > 1;
+
+    return `
+      <div class="cup-instance-panel" id="cup-panel-${instanceKey}">
+        <div class="cup-instance-header">
+          <span class="cup-instance-label">🍵 ${label}</span>
+          ${canRemove ? `<button type="button" class="cup-remove-btn" onclick="removeDrinkInstance('${safeKey}')" title="Remove this cup">✕ Remove</button>` : ''}
+        </div>
+        <div class="product-options-grid">
+          ${p.hasMatcha ? `
+          <div class="form-group">
+            <label for="matcha-${instanceKey}">🍵 Matcha Cultivar</label>
+            <select id="matcha-${instanceKey}" onchange="updateOption('${safeKey}', 'matcha', this.value)">
+              ${matchaChoices.map(c => `<option value="${c}" ${c === currentMatcha ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </div>` : ''}
+          <div class="form-group">
+            <label for="sweetness-${instanceKey}">🍬 Sweetness</label>
+            <select id="sweetness-${instanceKey}" onchange="updateOption('${safeKey}', 'sweetness', this.value)">
+              ${SWEETNESS_OPTS.map(s => `<option value="${s}" ${s === currentSweetness ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        ${buildAddOnsHtml(p, instanceKey)}
+      </div>`;
+  }
+
+  // ── Render the full product card (with all instances) ────────────────
   function renderDrinkCard(p) {
     const isAvail = p.available !== false;
-    const currentQty = state.items[p.id]?.qty || 0;
-    const hasQty = currentQty > 0;
+    const instances = getProductInstances(p.id);
+    const qty = instances.length;
+    const hasQty = qty > 0;
 
     const div = document.createElement('div');
     div.className = `product-item ${hasQty ? 'has-qty' : ''} ${isAvail ? '' : 'sold-out'}`;
@@ -114,72 +223,9 @@ function buildProductList() {
       ? `<img src="${p.image}" alt="${p.name}" class="product-img" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'product-img-fallback\\'>🍵</span>'" />`
       : `<span class="product-img-fallback">🍵</span>`;
 
-    const currentMatcha = state.items[p.id]?.matcha || (matchaChoices[0] || 'Classic');
-    const currentSweetness = state.items[p.id]?.sweetness || '100%';
-    const selectedAddOns = state.items[p.id]?.addOns || [];
-
-    const addOnsHtml = activeAddOnsList.length > 0 ? `
-      <div class="addons-section">
-        <div class="addons-label">✨ Optional Add-ons</div>
-        <div class="addons-grid">
-          ${activeAddOnsList.filter(a => {
-            const isHojichaProduct = p.category === 'hojicha';
-            if (isHojichaProduct) {
-              if (a.id === 'extra-shot') return false; // Extra Whisk Shot
-              if (a.id !== 'extra-matcha-gram' && a.name.toLowerCase().includes('matcha')) return false;
-            } else {
-              if (a.name.toLowerCase().includes('hojicha')) return false;
-            }
-            return true;
-          }).map(a => {
-      const isQty = a.type === 'quantity' || a.id.includes('gram') || (a.name && a.name.toLowerCase().includes('per gram')) || (a.name && a.name.toLowerCase().includes('matcha'));
-      const selectedItem = selectedAddOns.find(item => item.id === a.id);
-      const currentGramQty = selectedItem ? (selectedItem.qty || 1) : 0;
-      const isChecked = Boolean(selectedItem);
-      const isHojichaProduct = p.category === 'hojicha';
-      const displayName = (isHojichaProduct && a.id === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : a.name;
-
-      if (isQty) {
-        return `
-                <div class="addon-pill quantity-addon ${currentGramQty > 0 ? 'is-active' : ''}" id="addon-ctrl-${p.id}-${a.id}">
-                  <span>${displayName}</span>
-                  <span class="addon-price-tag">+₱${a.price}/g</span>
-                  <div class="addon-stepper">
-                    <button
-                      type="button"
-                      class="addon-stepper-btn"
-                      onclick="changeDrinkAddOnQty('${p.id}', '${a.id}', -1)"
-                      ${currentGramQty === 0 ? 'disabled' : ''}
-                      title="Decrease grams"
-                    >−</button>
-                    <span class="addon-stepper-qty" id="addon-qty-${p.id}-${a.id}">${currentGramQty}g</span>
-                    <button
-                      type="button"
-                      class="addon-stepper-btn"
-                      onclick="changeDrinkAddOnQty('${p.id}', '${a.id}', 1)"
-                      title="Add more grams"
-                    >+</button>
-                  </div>
-                </div>
-              `;
-      }
-
-      return `
-              <label class="addon-pill">
-                <input
-                  type="checkbox"
-                  ${isChecked ? 'checked' : ''}
-                  onchange="toggleDrinkAddOn('${p.id}', '${a.id}')"
-                />
-                <span>${a.name}</span>
-                <span class="addon-price-tag">+₱${a.price}</span>
-              </label>
-            `;
-    }).join('')}
-        </div>
-      </div>
-    ` : '';
-
+    const instancePanelsHtml = instances.map((key, idx) =>
+      renderInstancePanel(p, key, idx, instances.length)
+    ).join('');
 
     div.innerHTML = `
       <div class="product-card-inner">
@@ -191,35 +237,22 @@ function buildProductList() {
             <div class="product-price">₱${(p.price || 0).toLocaleString()}</div>
             ${isAvail ? `
             <div class="qty-control">
-              <button class="qty-btn" id="btn-minus-${p.id}" onclick="changeQty('${p.id}', -1)" aria-label="Decrease quantity">−</button>
-              <span class="qty-display" id="qty-${p.id}">${currentQty}</span>
-              <button class="qty-btn" id="btn-plus-${p.id}" onclick="changeQty('${p.id}', 1)" aria-label="Increase quantity">+</button>
-            </div>
-            ` : `
-            <span class="sold-out-badge">Sold Out</span>
-            `}
+              <button class="qty-btn" id="btn-minus-${p.id}" onclick="removeDrinkInstance(getLastInstance('${p.id}'))" ${qty === 0 ? 'disabled' : ''} aria-label="Remove a cup">−</button>
+              <span class="qty-display" id="qty-${p.id}">${qty}</span>
+              <button class="qty-btn" id="btn-plus-${p.id}" onclick="addDrinkInstance('${p.id}')" aria-label="Add a cup">+</button>
+            </div>` : `<span class="sold-out-badge">Sold Out</span>`}
           </div>
         </div>
       </div>
 
       <div class="product-options ${hasQty ? '' : 'hidden'}" id="opts-${p.id}">
-        <div class="product-options-grid">
-          ${p.hasMatcha ? `
-          <div class="form-group">
-            <label for="matcha-${p.id}">🍵 Matcha Cultivar</label>
-            <select id="matcha-${p.id}" onchange="updateOption('${p.id}', 'matcha', this.value)">
-              ${matchaChoices.map(c => `<option value="${c}" ${c === currentMatcha ? 'selected' : ''}>${c}</option>`).join('')}
-            </select>
-          </div>` : ''}
-          <div class="form-group">
-            <label for="sweetness-${p.id}">🍬 Sweetness</label>
-            <select id="sweetness-${p.id}" onchange="updateOption('${p.id}', 'sweetness', this.value)">
-              ${SWEETNESS_OPTS.map(s => `<option value="${s}" ${s === currentSweetness ? 'selected' : ''}>${s}</option>`).join('')}
-            </select>
-          </div>
+        <div id="instances-${p.id}">
+          ${instancePanelsHtml}
         </div>
-
-        ${addOnsHtml}
+        ${isAvail && hasQty ? `
+        <button type="button" class="add-another-cup-btn" onclick="addDrinkInstance('${p.id}')">
+          ＋ Add Another Cup
+        </button>` : ''}
       </div>
     `;
 
@@ -259,61 +292,92 @@ function buildProductList() {
   }
 }
 
-// ── Quantity Controls ────────────────────────────────────────────────
-window.changeQty = function (productId, delta) {
-  const current = state.items[productId]?.qty || 0;
-  const newQty = Math.max(0, current + delta);
+// ── Per-Instance Controls ────────────────────────────────────────────
 
-  if (newQty === 0) {
-    delete state.items[productId];
-  } else {
-    state.items[productId] = {
-      qty: newQty,
-      matcha: state.items[productId]?.matcha || (matchaChoices[0] || 'Classic'),
-      sweetness: state.items[productId]?.sweetness || '100%',
-      addOns: state.items[productId]?.addOns || [],
-    };
-  }
+/** Get the last added instance key for a product (for the − button) */
+window.getLastInstance = function (productId) {
+  const instances = getProductInstances(productId);
+  return instances.length > 0 ? instances[instances.length - 1] : null;
+};
 
-  const qtyEl = $(`qty-${productId}`);
-  if (qtyEl) qtyEl.textContent = newQty;
+/** Add a new cup instance for a product */
+window.addDrinkInstance = function (productId) {
+  const existing = getProductInstances(productId);
+  // Copy last instance's settings as defaults
+  const last = existing.length > 0 ? state.items[existing[existing.length - 1]] : null;
+  const n = existing.length; // new index
+  const instanceKey = `${productId}__${n}`;
 
-  const opts = $(`opts-${productId}`);
-  const card = $(`product-${productId}`);
-  if (newQty > 0) {
-    opts?.classList.remove('hidden');
-    card?.classList.add('has-qty');
-  } else {
-    opts?.classList.add('hidden');
-    card?.classList.remove('has-qty');
-  }
+  state.items[instanceKey] = {
+    productId,
+    instanceIndex: n,
+    matcha: last?.matcha || (matchaChoices[0] || 'Classic'),
+    sweetness: last?.sweetness || '100%',
+    addOns: [],  // new cup starts with no add-ons
+  };
 
+  // Rebuild the whole card so instance panels & buttons are in sync
+  _rebuildProductCard(productId);
   updateSummary();
 };
 
-window.updateOption = function (productId, field, value) {
-  if (state.items[productId]) {
-    state.items[productId][field] = value;
+/** Remove a specific cup instance */
+window.removeDrinkInstance = function (instanceKey) {
+  if (!instanceKey || !state.items[instanceKey]) return;
+  const productId = state.items[instanceKey].productId;
+  delete state.items[instanceKey];
+
+  // Re-index remaining instances so keys stay sequential
+  const remaining = getProductInstances(productId);
+  const reindexed = {};
+  remaining.forEach((key, newIdx) => {
+    const data = state.items[key];
+    const newKey = `${productId}__${newIdx}`;
+    reindexed[newKey] = { ...data, instanceIndex: newIdx };
+    delete state.items[key];
+  });
+  Object.assign(state.items, reindexed);
+
+  _rebuildProductCard(productId);
+  updateSummary();
+};
+
+/** Re-render just the product card in place (avoids full buildProductList rebuild) */
+function _rebuildProductCard(productId) {
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+
+  const activeAddOnsList = Object.values(addOns).filter(a => a.available !== false);
+
+  // We need to call renderDrinkCard but it's scoped inside buildProductList.
+  // Instead, rebuild via buildProductList which will re-render everything.
+  buildProductList();
+}
+
+window.updateOption = function (instanceKey, field, value) {
+  if (state.items[instanceKey]) {
+    state.items[instanceKey][field] = value;
   }
 };
 
-window.toggleDrinkAddOn = function (productId, addOnId) {
-  if (!state.items[productId]) return;
+window.toggleDrinkAddOn = function (instanceKey, addOnId) {
+  if (!state.items[instanceKey]) return;
 
   const addOn = addOns[addOnId];
   if (!addOn) return;
 
-  const product = products.find(p => p.id === productId);
+  const inst = state.items[instanceKey];
+  const product = products.find(p => p.id === inst.productId);
   const isHojicha = product?.category === 'hojicha';
   const displayName = (isHojicha && addOnId === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : addOn.name;
 
-  const currentAddOns = state.items[productId].addOns || [];
+  const currentAddOns = inst.addOns || [];
   const exists = currentAddOns.some(a => a.id === addOnId);
 
   if (exists) {
-    state.items[productId].addOns = currentAddOns.filter(a => a.id !== addOnId);
+    inst.addOns = currentAddOns.filter(a => a.id !== addOnId);
   } else {
-    state.items[productId].addOns = [
+    inst.addOns = [
       ...currentAddOns,
       { id: addOn.id, name: displayName, price: addOn.price, qty: 1, unit: addOn.unit || '' }
     ];
@@ -322,40 +386,41 @@ window.toggleDrinkAddOn = function (productId, addOnId) {
   updateSummary();
 };
 
-window.changeDrinkAddOnQty = function (productId, addOnId, delta) {
-  if (!state.items[productId]) return;
+window.changeDrinkAddOnQty = function (instanceKey, addOnId, delta) {
+  if (!state.items[instanceKey]) return;
 
   const addOn = addOns[addOnId];
   if (!addOn) return;
 
-  const product = products.find(p => p.id === productId);
+  const inst = state.items[instanceKey];
+  const product = products.find(p => p.id === inst.productId);
   const isHojicha = product?.category === 'hojicha';
   const displayName = (isHojicha && addOnId === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : addOn.name;
 
-  const currentAddOns = state.items[productId].addOns || [];
+  const currentAddOns = inst.addOns || [];
   const existing = currentAddOns.find(a => a.id === addOnId);
   const currentQty = existing ? (existing.qty || 1) : 0;
   const newQty = Math.max(0, currentQty + delta);
 
   if (newQty === 0) {
-    state.items[productId].addOns = currentAddOns.filter(a => a.id !== addOnId);
+    inst.addOns = currentAddOns.filter(a => a.id !== addOnId);
   } else if (existing) {
     existing.qty = newQty;
   } else {
-    state.items[productId].addOns = [
+    inst.addOns = [
       ...currentAddOns,
       { id: addOn.id, name: displayName, price: addOn.price, qty: newQty, unit: addOn.unit || 'g' }
     ];
   }
 
   // Update UI elements for stepper pill
-  const qtyDisplay = $(`addon-qty-${productId}-${addOnId}`);
+  const qtyDisplay = $(`addon-qty-${instanceKey}-${addOnId}`);
   if (qtyDisplay) {
     const unit = addOn.unit || 'g';
     qtyDisplay.textContent = `${newQty}${unit}`;
   }
 
-  const pillCtrl = $(`addon-ctrl-${productId}-${addOnId}`);
+  const pillCtrl = $(`addon-ctrl-${instanceKey}-${addOnId}`);
   if (pillCtrl) {
     if (newQty > 0) {
       pillCtrl.classList.add('is-active');
@@ -523,12 +588,13 @@ function setupDeliveryToggle() {
 // ── Summary & Mobile Sticky Cart ─────────────────────────────────────
 function updateSummary() {
   const summarySection = $('order-summary');
-  const selectedItems = Object.entries(state.items).filter(([, v]) => v.qty > 0);
+  // Collect all instances (each is qty:1)
+  const allInstances = Object.entries(state.items);
 
   const stickyCart = $('mobile-sticky-cart');
-  const totalQty = selectedItems.reduce((acc, [, v]) => acc + v.qty, 0);
+  const totalQty = allInstances.length;
 
-  if (selectedItems.length === 0) {
+  if (totalQty === 0) {
     summarySection?.classList.add('hidden');
     stickyCart?.classList.add('hidden');
     return;
@@ -537,12 +603,11 @@ function updateSummary() {
   summarySection?.classList.remove('hidden');
 
   let subtotal = 0;
-  const itemRows = selectedItems.map(([id, v]) => {
-    const product = products.find(p => p.id === id) || { name: 'Item', price: 0 };
+  const itemRows = allInstances.map(([instanceKey, v]) => {
+    const product = products.find(p => p.id === v.productId) || { name: 'Item', price: 0 };
     const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
     const unitPrice = (product.price || 0) + addOnTotal;
-    const lineTotal = unitPrice * v.qty;
-    subtotal += lineTotal;
+    subtotal += unitPrice;
 
     let opts = [];
     if (v.matcha) opts.push(v.matcha);
@@ -555,15 +620,21 @@ function updateSummary() {
       }).join(', '));
     }
 
+    // Cup label: only show "Cup N" if product has multiple instances
+    const productInstances = getProductInstances(v.productId);
+    const cupLabel = productInstances.length > 1
+      ? ` <span style="font-size:11px;opacity:0.6">(Cup ${v.instanceIndex + 1})</span>`
+      : '';
+
     return `
       <tr>
         <td>
-          <div class="summary-item-name">${product.name}</div>
+          <div class="summary-item-name">${product.name}${cupLabel}</div>
           ${opts.length ? `<div class="summary-item-detail">${opts.join(' · ')}</div>` : ''}
         </td>
-        <td style="text-align:center">${v.qty}</td>
+        <td style="text-align:center">1</td>
         <td style="text-align:right">₱${unitPrice.toLocaleString()}</td>
-        <td style="text-align:right">₱${lineTotal.toLocaleString()}</td>
+        <td style="text-align:right">₱${unitPrice.toLocaleString()}</td>
       </tr>
     `;
   }).join('');
@@ -712,8 +783,7 @@ function validateForm() {
   }
 
   // ── Item check ────────────────────────────────────────────────────
-  const selectedItems = Object.entries(state.items).filter(([, v]) => v.qty > 0);
-  if (selectedItems.length === 0) {
+  if (Object.keys(state.items).length === 0) {
     showToast('Please select at least one drink.');
     return false;
   }
@@ -749,21 +819,21 @@ async function placeOrder() {
   try {
     let subtotal = 0;
     const selectedItems = Object.entries(state.items)
-      .filter(([, v]) => v.qty > 0)
-      .map(([id, v]) => {
-        const product = products.find(p => p.id === id) || { name: 'Custom Drink', price: 0 };
+      .map(([instanceKey, v]) => {
+        const product = products.find(p => p.id === v.productId) || { name: 'Custom Drink', price: 0 };
         const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
         const unitPrice = (product.price || 0) + addOnTotal;
-        const lineTotal = unitPrice * v.qty;
-        subtotal += lineTotal;
+        subtotal += unitPrice;
 
         return {
+          instanceKey,
           id: product.id,
           name: product.name,
           basePrice: product.price,
           unitPrice,
-          lineTotal,
-          qty: v.qty,
+          lineTotal: unitPrice,
+          qty: 1,
+          cupIndex: v.instanceIndex,
           matcha: v.matcha || null,
           sweetness: v.sweetness || null,
           addOns: v.addOns || [],

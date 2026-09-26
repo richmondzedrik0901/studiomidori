@@ -97,7 +97,19 @@ window.switchAdminSection = function(section) {
     menuSec?.classList.remove('hidden');
     ordersSec?.classList.add('hidden');
   }
+
+  sessionStorage.setItem('midori_admin_section', section);
 };
+
+// Restore last active section on reload
+(function restoreAdminSection() {
+  const saved = sessionStorage.getItem('midori_admin_section');
+  if (saved && saved !== 'orders') {
+    // Defer until DOM is ready
+    document.addEventListener('DOMContentLoaded', () => switchAdminSection(saved));
+  }
+})();
+
 
 // ══════════════════════════════════════════════════════════════════════
 // ORDERS MODULE

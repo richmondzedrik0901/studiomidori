@@ -2813,3 +2813,88 @@ select {
 .skeleton-line.w30 {
   width: 30%;
 }
+
+/* ── Per-Cup Instance Panels ─────────────────────────────────────────── */
+
+.cup-instance-panel {
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px 12px;
+  margin-bottom: 10px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.cup-instance-panel:last-child {
+  margin-bottom: 0;
+}
+
+.cup-instance-panel:focus-within {
+  border-color: var(--matcha-light);
+  box-shadow: 0 0 0 3px rgba(79, 110, 37, 0.08);
+}
+
+.cup-instance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cup-instance-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--matcha);
+  letter-spacing: 0.02em;
+}
+
+.cup-remove-btn {
+  background: none;
+  border: 1.5px solid #e57373;
+  color: #c62828;
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  font-family: inherit;
+}
+
+.cup-remove-btn:hover {
+  background: #ffeaea;
+  color: #b71c1c;
+}
+
+/* ── Add Another Cup Button ──────────────────────────────────────────── */
+
+.add-another-cup-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, var(--green-50) 0%, var(--green-100) 100%);
+  border: 2px dashed var(--matcha-light);
+  border-radius: var(--radius-md);
+  color: var(--matcha);
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background var(--transition), border-color var(--transition), transform 0.15s ease, box-shadow var(--transition);
+}
+
+.add-another-cup-btn:hover {
+  background: linear-gradient(135deg, var(--green-100) 0%, var(--green-200) 100%);
+  border-color: var(--matcha);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.add-another-cup-btn:active {
+  transform: translateY(0);
+}
