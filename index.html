@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="description"
+    content="Order your favourite matcha drinks from Studio Midori. Pickup or delivery available." />
+  <title>Order – Studio Midori 🍵</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍵</text></svg>" />
+</head>
+
+<body>
+
+  <!-- ── Header ── -->
+  <header class="site-header">
+    <img src="logo.png" alt="Studio Midori" class="logo-img" />
+  </header>
+
+  <!-- ══════════════════════════════════════════
+       ORDER FORM AREA
+  ══════════════════════════════════════════ -->
+  <div id="order-form-area">
+    <div class="container">
+
+      <!-- ── Active Order Alert Banner (if customer has an active order) ── -->
+      <div id="active-order-banner-container"></div>
+
+      <!-- ── Drinks ── -->
+      <div style="height:14px"></div>
+      <div class="card">
+        <div class="card-header">
+          <div class="step-num">1</div>
+          <div>
+            <h2>Choose Your Drinks</h2>
+            <div class="card-header-sub">Select drinks and customise each one</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <!-- ── Category Filter Tabs (Matcha vs Hojicha) ── -->
+          <div class="menu-category-tabs" id="menu-category-tabs" role="tablist" aria-label="Filter drinks by series">
+            <button class="category-tab-btn active" onclick="setMenuCategory('all')" id="cat-tab-all">All
+              Drinks</button>
+            <button class="category-tab-btn" onclick="setMenuCategory('matcha')" id="cat-tab-matcha">🍵 Matcha
+              Series</button>
+            <button class="category-tab-btn" onclick="setMenuCategory('hojicha')" id="cat-tab-hojicha">🍂 Hojicha
+              Series</button>
+          </div>
+
+
+          <div id="product-list">
+            <!-- Skeleton loading placeholders (cleared by app.js) -->
+            <div class="skeleton-card">
+              <div class="skeleton-img"></div>
+              <div class="skeleton-body">
+                <div class="skeleton-line w70"></div>
+                <div class="skeleton-line w50"></div>
+                <div class="skeleton-line w30"></div>
+              </div>
+            </div>
+            <div class="skeleton-card">
+              <div class="skeleton-img"></div>
+              <div class="skeleton-body">
+                <div class="skeleton-line w70"></div>
+                <div class="skeleton-line w50"></div>
+                <div class="skeleton-line w30"></div>
+              </div>
+            </div>
+            <div class="skeleton-card">
+              <div class="skeleton-img"></div>
+              <div class="skeleton-body">
+                <div class="skeleton-line w70"></div>
+                <div class="skeleton-line w50"></div>
+                <div class="skeleton-line w30"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Customer Info ── -->
+      <div class="card" id="customer-details-card">
+        <div class="card-header">
+          <div class="step-num">2</div>
+          <div>
+            <h2>Your Details</h2>
+            <div class="card-header-sub">Name, Facebook, and mobile number</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label for="customer-name">Full Name <span class="required">*</span></label>
+            <input type="text" id="customer-name" placeholder="e.g. Maria Santos" autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label for="fb-name">Facebook Name <span class="required">*</span></label>
+            <input type="text" id="fb-name" placeholder="Your exact Facebook display name" />
+          </div>
+          <div class="form-group">
+            <label for="mobile-number">Mobile Number <span class="required">*</span></label>
+            <input type="tel" id="mobile-number" placeholder="09XX XXX XXXX" autocomplete="tel" inputmode="tel" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Pickup or Delivery ── -->
+      <div class="card">
+        <div class="card-header">
+          <div class="step-num">3</div>
+          <div>
+            <h2>Order Type</h2>
+            <div class="card-header-sub">Store pickup or home delivery</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <div class="toggle-group">
+              <input type="radio" name="delivery-type" id="type-pickup" value="pickup" checked />
+              <label for="type-pickup">🏪 Pickup</label>
+              <input type="radio" name="delivery-type" id="type-delivery" value="delivery" />
+              <label for="type-delivery">🛵 Delivery</label>
+            </div>
+          </div>
+
+          <!-- Pickup Fields -->
+          <div id="pickup-fields">
+            <div class="form-group">
+              <label>Store Location</label>
+              <div style="border-radius: 12px; overflow: hidden; margin-top: 8px; border: 1px solid var(--border);">
+                <iframe width="100%" height="250" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"
+                  src="https://maps.google.com/maps?q=Aspacio%20Panciteria,%20Mabini%20St,%20Bangued,%20Abra&t=&z=16&ie=UTF8&iwloc=&output=embed">
+                </iframe>
+              </div>
+              <p class="map-help-text" style="margin-top: 8px; text-align: center;">Aspacio Panciteria, Mabini St, Zone
+                3, Bangued, Abra</p>
+            </div>
+          </div>
+
+          <!-- Delivery Fields (hidden by default) -->
+          <div id="delivery-fields" class="hidden">
+            <div class="form-group">
+              <div class="map-label-row">
+                <label for="delivery-map">Pin Your Location <span class="required">*</span></label>
+                <button type="button" id="btn-use-gps" class="btn-locate-me" title="Use current GPS location">
+                  📍 Use My Location
+                </button>
+              </div>
+              <p class="map-help-text">Tap the map or drag the pin to your exact delivery spot.</p>
+
+              <div id="delivery-map-container" class="delivery-map-wrapper">
+                <div id="delivery-map"></div>
+                <div id="map-pin-status" class="map-status-pill">
+                  📍 <span id="pin-coords-display">Tap map to drop a pin</span>
+                </div>
+              </div>
+              <input type="hidden" id="delivery-lat" />
+              <input type="hidden" id="delivery-lng" />
+            </div>
+
+            <div class="form-group">
+              <label for="delivery-area">Delivery Area <span class="required">*</span></label>
+              <select id="delivery-area">
+                <option value="">Select your area (Loading...)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="delivery-address">Street Address / Landmark <span class="required">*</span></label>
+              <input type="text" id="delivery-address" placeholder="House #, Street, Barangay, or Landmark" />
+            </div>
+            <div class="form-group">
+              <label for="delivery-notes">Delivery Notes <span
+                  style="font-weight:500;color:var(--text-soft)">(optional)</span></label>
+              <textarea id="delivery-notes"
+                placeholder="Gate code, drop-off instructions, or any special request…"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Date & Time ── -->
+      <div class="card">
+        <div class="card-header">
+          <div class="step-num">4</div>
+          <div>
+            <h2>When?</h2>
+            <div class="card-header-sub">Pick your preferred date &amp; time</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group" style="margin-bottom:0">
+              <label for="order-date">Date <span class="required">*</span></label>
+              <input type="date" id="order-date" />
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label for="preferred-time">Time <span class="required">*</span></label>
+              <input type="time" id="preferred-time" value="10:00" />
+            </div>
+          </div>
+          <div id="order-date-hint" class="order-date-hint" style="margin-top:10px"></div>
+          <div class="schedule-info-box" style="margin-top:10px">
+            <strong>📌 Schedule: </strong>
+            <span style="font-size:13px"><strong>Mon–Thu:</strong> Advance orders only &nbsp;·&nbsp;
+              <strong>Fri–Sun:</strong> Today or advance</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Order Summary ── -->
+      <div class="card hidden" id="order-summary">
+        <div class="card-header">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+          </div>
+          <h2>Order Summary</h2>
+        </div>
+        <div class="card-body">
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <td
+                  style="font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
+                  Item</td>
+                <td
+                  style="text-align:center;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
+                  Qty</td>
+                <td
+                  style="text-align:right;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
+                  Price</td>
+                <td
+                  style="text-align:right;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
+                  Total</td>
+              </tr>
+            </thead>
+            <tbody id="summary-items"></tbody>
+            <tbody>
+              <tr>
+                <td colspan="4">
+                  <hr class="summary-divider" />
+                </td>
+              </tr>
+              <tr>
+                <td colspan="3" style="font-weight:700;color:var(--text-mid)">Subtotal</td>
+                <td id="summary-subtotal" style="text-align:right;font-weight:700">₱0</td>
+              </tr>
+              <tr id="summary-delivery-row" class="fee-row">
+                <td colspan="3" style="color:var(--text-soft)">Delivery Fee</td>
+                <td id="summary-delivery-fee" style="text-align:right;color:var(--text-soft)">₱60</td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="3">Total</td>
+                <td id="summary-total" style="text-align:right">₱0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Place Order ── -->
+      <button class="place-order-btn" id="place-order-btn" type="button">
+        🍵 Place Order
+      </button>
+
+      <!-- ── Footer ── -->
+      <footer
+        style="margin-top:32px;padding:18px 0 10px;text-align:center;border-top:1px dashed var(--border);font-size:13px;color:var(--text-soft);">
+        <p>Studio Midori &middot; Craft Matcha Experience</p>
+        <p style="margin-top:4px;font-size:12px;opacity:0.8;">Freshly Whisked &middot; Handcrafted with Care 🍵</p>
+      </footer>
+
+    </div><!-- /container -->
+  </div><!-- /order-form-area -->
+
+
+  <!-- ══════════════════════════════════════════
+       SUCCESS SCREEN
+  ══════════════════════════════════════════ -->
+  <div id="success-screen" class="success-screen hidden">
+    <div class="container">
+      <div class="success-checkmark">
+        <svg viewBox="0 0 24 24">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+
+      <h1 class="success-title">Order Received!</h1>
+      <p style="color:var(--text-soft);font-size:14px;font-weight:600;margin-bottom:4px">Your order number is</p>
+      <div class="order-number-badge" id="success-order-number">SM-0001</div>
+
+      <!-- ── Live Order Status Tracker ── -->
+      <div class="order-status-card" id="order-status-card">
+        <div class="status-live-header">
+          <span class="live-indicator"><span class="live-dot"></span> Live Status</span>
+          <span class="status-current-badge status-new" id="customer-status-badge">🆕 Received</span>
+        </div>
+
+        <div class="status-message-box" id="customer-status-desc">
+          We've received your order! We'll begin preparing your drinks shortly.
+        </div>
+
+        <div class="status-steps" id="status-steps">
+          <div class="step-item active" id="step-new">
+            <div class="step-icon-wrap"><span class="step-icon">📋</span></div>
+            <div class="step-label">Received</div>
+          </div>
+          <div class="step-line" id="line-1"></div>
+          <div class="step-item" id="step-preparing">
+            <div class="step-icon-wrap"><span class="step-icon">👩‍🍳</span></div>
+            <div class="step-label">Preparing</div>
+          </div>
+          <div class="step-line" id="line-2"></div>
+          <div class="step-item" id="step-ready">
+            <div class="step-icon-wrap"><span class="step-icon" id="step-ready-icon">✅</span></div>
+            <div class="step-label" id="step-ready-label">Ready</div>
+          </div>
+          <div class="step-line" id="line-3"></div>
+          <div class="step-item" id="step-completed">
+            <div class="step-icon-wrap"><span class="step-icon">🎉</span></div>
+            <div class="step-label">Completed</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="success-detail-card">
+        <div class="detail-row">
+          <span class="detail-label">Name</span>
+          <span class="detail-value" id="success-customer-name">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Mobile</span>
+          <span class="detail-value" id="success-mobile">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Facebook</span>
+          <span class="detail-value" id="success-fb">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Order Type</span>
+          <span class="detail-value" id="success-type">—</span>
+        </div>
+        <div class="detail-row hidden" id="success-location-row">
+          <span class="detail-label">Delivery Pin</span>
+          <span class="detail-value" id="success-location">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Date & Time</span>
+          <span class="detail-value" id="success-date">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Items</span>
+          <span class="detail-value" id="success-items">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Subtotal</span>
+          <span class="detail-value" id="success-subtotal">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Delivery Fee</span>
+          <span class="detail-value" id="success-delivery-fee">Free</span>
+        </div>
+        <div class="detail-row" style="border-bottom:none">
+          <span class="detail-label" style="font-size:16px;color:var(--green-700);font-weight:900">Total</span>
+          <span class="detail-value" id="success-total"
+            style="font-size:18px;color:var(--green-700);font-weight:900">—</span>
+        </div>
+      </div>
+
+      <div class="success-note">
+        📲 We'll message you on Facebook once your order is being prepared.
+        Thank you for ordering from Studio Midori! 💚
+      </div>
+
+      <button class="new-order-btn" id="new-order-btn">+ Place Another Order</button>
+    </div>
+  </div>
+
+  <!-- ── Mobile Sticky Cart Bar ── -->
+  <div class="mobile-sticky-cart hidden" id="mobile-sticky-cart">
+    <div class="sticky-cart-content">
+      <div class="sticky-cart-info">
+        <span class="sticky-cart-count" id="sticky-cart-count">0 drinks</span>
+        <span class="sticky-cart-total" id="sticky-cart-total">₱0</span>
+      </div>
+      <button class="sticky-cart-btn" id="sticky-cart-btn" type="button">
+        Review & Checkout ➔
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+  <script type="module" src="notification.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Admin – Studio Midori</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍵</text></svg>" />
+</head>
+<body>
+
+  <!-- ── Admin Login Passcode Gate Overlay ── -->
+  <div class="admin-auth-overlay" id="admin-auth-overlay">
+    <div class="admin-auth-card">
+      <div class="auth-icon">🔒</div>
+      <h2>Studio Midori Admin</h2>
+      <p>Owner & store management access only. Please enter your admin passcode to proceed.</p>
+      <form id="admin-auth-form" onsubmit="verifyAdminPasscode(event)">
+        <div style="margin-bottom: 14px;">
+          <input
+            type="password"
+            id="admin-passcode-input"
+            placeholder="Enter Admin Passcode"
+            autocomplete="current-password"
+            required
+            style="text-align:center; font-size:18px; letter-spacing:3px; font-weight:700;"
+          />
+        </div>
+        <button type="submit" class="btn-primary" style="width:100%; border-radius:var(--radius-full); padding:12px;">
+          Unlock Dashboard ➔
+        </button>
+      </form>
+      <div id="auth-error-msg" class="auth-error hidden">Incorrect passcode. Please try again.</div>
+    </div>
+  </div>
+
+  <!-- ── Admin Header ── -->
+  <header class="admin-header">
+    <div class="logo">Studio Midori</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="admin-badge">Admin</div>
+      <button class="admin-logout-btn" onclick="logoutAdmin()" title="Lock Dashboard" aria-label="Lock Dashboard">🔒 Lock</button>
+    </div>
+  </header>
+
+  <!-- ── Admin Navigation ── -->
+  <nav class="admin-nav">
+    <button class="admin-nav-btn active" id="nav-btn-orders" onclick="switchAdminSection('orders')">
+      📋 Orders <span class="nav-count-badge" id="nav-orders-count">0</span>
+    </button>
+    <button class="admin-nav-btn" id="nav-btn-menu" onclick="switchAdminSection('menu')">
+      🍵 Menu & Matcha
+    </button>
+  </nav>
+
+  <!-- ── Orders Section ── -->
+  <div class="orders-container" id="orders-section">
+
+    <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Orders</h1>
+      <a href="index.html"
+         style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
+        🍵 Order Page ↗
+      </a>
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar" id="tab-bar" role="tablist" aria-label="Filter by status">
+      <!-- Built by admin.js -->
+    </div>
+
+    <!-- Orders List -->
+    <div id="orders-list">
+      <div class="empty-state">
+        <div class="empty-icon">🍵</div>
+        <p>Connecting to Firebase & loading orders...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Menu & Matcha Management Section ── -->
+  <div class="orders-container hidden" id="menu-section">
+
+    <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Menu & Customizations</h1>
+      <a href="index.html"
+         style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
+        🍵 View Live Site ↗
+      </a>
+    </div>
+
+    <!-- 1. Matcha Choices Card -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <div class="admin-card-title">🍃 Matcha Varieties</div>
+          <div class="admin-card-subtitle">Customization options customers can choose for their drinks</div>
+        </div>
+      </div>
+      <div class="matcha-chips" id="matcha-chips-list">
+        <!-- Rendered by admin.js -->
+      </div>
+      <div class="matcha-add-row">
+        <input type="text" class="matcha-add-input" id="new-matcha-input" placeholder="e.g. Uji Ceremonial, Okumidori..." />
+        <button class="admin-primary-btn" onclick="addMatchaChoice()">+ Add</button>
+      </div>
+    </div>
+
+    <!-- 2. Drinks Menu Card -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <div class="admin-card-title">🍵 Drinks Menu</div>
+          <div class="admin-card-subtitle">Manage prices, categories, descriptions, and drink photos</div>
+        </div>
+        <button class="admin-primary-btn" onclick="openAddDrinkModal()">+ Add New Drink</button>
+      </div>
+      <div class="admin-products-list" id="admin-products-list">
+        <!-- Rendered by admin.js -->
+      </div>
+    </div>
+
+    <!-- 3. Add-ons Manager Card -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <div class="admin-card-title">✨ Drink Add-ons & Modifiers</div>
+          <div class="admin-card-subtitle">Customizable additions for customer drinks (milks, shots, toppings)</div>
+        </div>
+      </div>
+      <div class="admin-addons-list" id="admin-addons-list">
+        <!-- Rendered by admin.js -->
+      </div>
+      <form class="admin-addon-add-form" onsubmit="addAddOn(event)">
+        <input type="text" class="matcha-add-input" id="new-addon-name" placeholder="Add-on name (e.g. Extra Matcha)" required />
+        <input type="number" class="matcha-add-input" id="new-addon-price" placeholder="Price ₱ (e.g. 25)" min="0" required />
+        <select class="matcha-add-input" id="new-addon-type" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-weight:600">
+          <option value="checkbox">Standard (Checkbox)</option>
+          <option value="quantity">Per Gram / Quantity (+/- stepper)</option>
+        </select>
+        <button type="submit" class="admin-primary-btn">+ Add Add-on</button>
+      </form>
+    </div>
+
+    <!-- 4. Delivery Locations Manager -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <div class="admin-card-title">🚚 Delivery Locations & Fees</div>
+          <div class="admin-card-subtitle">Set available shipping locations and their fees (Set fee to 0 for Free Delivery)</div>
+        </div>
+      </div>
+      <div class="admin-addons-list" id="admin-delivery-list">
+        <!-- Rendered by admin.js -->
+      </div>
+      <form class="admin-addon-add-form" onsubmit="addDeliveryLocation(event)">
+        <input type="text" class="matcha-add-input" id="new-delivery-name" placeholder="Location Name (e.g. Bangued Proper)" required />
+        <input type="number" class="matcha-add-input" id="new-delivery-fee" placeholder="Fee ₱ (0 = Free)" min="0" required />
+        <button type="submit" class="admin-primary-btn">+ Add Location</button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       ORDER DETAIL MODAL (Bottom Sheet)
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="order-modal" role="dialog" aria-modal="true" aria-labelledby="modal-order-number">
+
+    <div class="modal-sheet">
+      <div class="modal-drag-bar"></div>
+
+      <div class="modal-header">
+        <div class="modal-title" id="modal-order-number">SM-0001</div>
+        <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal-body" id="modal-body">
+        <!-- Built by admin.js -->
+      </div>
+
+      <div class="status-changer">
+        <div class="status-changer-label">Change Status</div>
+        <div class="status-buttons" id="modal-status-buttons">
+          <!-- Built by admin.js -->
+        </div>
+      </div>
+
+      <div id="modal-delete-area"></div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       DRINK EDIT / ADD MODAL
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="drink-modal" role="dialog" aria-modal="true" aria-labelledby="drink-modal-title">
+    <div class="modal-sheet">
+      <div class="modal-drag-bar"></div>
+
+      <div class="modal-header">
+        <div class="modal-title" id="drink-modal-title">Add Drink</div>
+        <button class="modal-close" onclick="closeDrinkModal()" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="drink-form" onsubmit="saveDrink(event)">
+          <input type="hidden" id="drink-edit-id" value="" />
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label for="drink-category">Drink Series / Category <span class="required">*</span></label>
+            <select id="drink-category" required>
+              <option value="matcha">🍵 Matcha Series</option>
+              <option value="hojicha">🍂 Hojicha Series</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label for="drink-name">Drink Name <span class="required">*</span></label>
+            <input type="text" id="drink-name" placeholder="e.g. Ceremonial Matcha Latte" required />
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label for="drink-price">Price (₱) <span class="required">*</span></label>
+            <input type="number" id="drink-price" placeholder="199" min="0" required />
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label for="drink-description">Description</label>
+            <textarea id="drink-description" placeholder="Brief details about the ingredients, notes, etc." rows="2"></textarea>
+          </div>
+
+          <!-- Matcha customizable checkbox -->
+          <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">
+            <input type="checkbox" id="drink-has-matcha" style="width:18px;height:18px;accent-color:var(--green-600)" checked />
+            <label for="drink-has-matcha" style="margin:0;font-size:14px;cursor:pointer">
+              <strong>Matcha Customizable</strong> (customers can choose matcha variety)
+            </label>
+          </div>
+
+          <!-- Availability checkbox -->
+          <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">
+            <input type="checkbox" id="drink-available" style="width:18px;height:18px;accent-color:var(--green-600)" checked />
+            <label for="drink-available" style="margin:0;font-size:14px;cursor:pointer">
+              <strong>In Stock</strong> (available for order)
+            </label>
+          </div>
+
+          <!-- Drink Image Section -->
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Drink Picture</label>
+            <div style="font-size:12px;color:var(--text-soft);margin-bottom:8px">
+              Upload from your phone/computer or paste an image link:
+            </div>
+
+            <input type="file" id="drink-file-input" accept="image/*" style="font-size:13px;margin-bottom:8px" onchange="handleImageUpload(event)" />
+            
+            <input type="url" id="drink-image-url" placeholder="Or paste image URL (https://...)" oninput="handleImageUrlInput(this.value)" />
+
+            <div class="image-preview-container">
+              <div class="image-preview-box" id="image-preview-box">
+                <span class="image-preview-placeholder">🍵</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-soft)">
+                <button type="button" class="admin-action-btn delete" onclick="clearDrinkImage()" id="clear-img-btn" style="display:none">Remove Picture</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-form-actions">
+            <button type="button" class="btn-secondary" onclick="closeDrinkModal()">Cancel</button>
+            <button type="submit" class="btn-primary" id="save-drink-btn">Save Drink</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
