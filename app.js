@@ -1151,7 +1151,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('new-order-btn').addEventListener('click', () => {
-    localStorage.removeItem('midori_active_order');
     location.reload();
   });
 
