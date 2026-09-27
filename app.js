@@ -1018,7 +1018,6 @@ function updateStatusTracker(status, deliveryType = 'pickup') {
       line.classList.remove('completed');
     }
   });
-  });
 }
 
 const seenNotifications = new Set();
@@ -1036,6 +1035,8 @@ function notifyCustomer(orderKey, orderNumber, label) {
     });
   }
 }
+
+function listenToOrderStatus(orderKey, deliveryType) {
   if (activeStatusUnsubscribe) {
     activeStatusUnsubscribe();
   }
