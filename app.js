@@ -724,15 +724,20 @@ function setupDateTimeRules() {
   function applyTimeMin() {
     if (!timeInput) return;
     const today = getTodayDateString();
+    const minPrepTime = getOffsetTimeString(30);
+    
     if (dateInput.value === today) {
       // Minimum prep time buffer for today's orders
-      const minPrepTime = getOffsetTimeString(30);
       timeInput.min = minPrepTime;
       if (!timeInput.value || timeInput.value < minPrepTime) {
         timeInput.value = minPrepTime;
       }
     } else {
       timeInput.removeAttribute('min');
+      // If picking an advance date and time is empty, prefill with 30 mins from now anyway
+      if (!timeInput.value) {
+        timeInput.value = minPrepTime;
+      }
     }
   }
 
