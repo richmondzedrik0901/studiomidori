@@ -1217,7 +1217,7 @@ function checkActiveOrder() {
     if (!container) return;
 
     container.innerHTML = validOrders.map((active, index) => `
-      <div class="active-order-banner" style="margin-bottom: 8px;">
+      <div class="active-order-banner" id="active-banner-${index}" style="margin-bottom: 8px; transition: opacity 0.3s;">
         <div>
           <strong>🍵 Order in Progress (#${active.orderNumber})</strong>
           <div id="banner-status-text-${index}" style="font-size:13px;font-weight:700;margin-top:2px;">Loading live status...</div>
@@ -1239,9 +1239,15 @@ function checkActiveOrder() {
         const orderRef = ref(db, `orders/${active.key}`);
         onValue(orderRef, (snapshot) => {
           if (!snapshot.exists()) {
-            const statusEl = $(`banner-status-text-${index}`);
-            if (statusEl) {
-              statusEl.textContent = '❌ Cancelled/Deleted';
+            const bannerDiv = $(`active-banner-${index}`);
+            if (bannerDiv) {
+              bannerDiv.style.opacity = '0';
+              setTimeout(() => {
+                bannerDiv.remove();
+                if (container.children.length === 0) {
+                  container.innerHTML = '';
+                }
+              }, 300);
             }
             
             // Remove from local storage
