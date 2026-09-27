@@ -452,14 +452,22 @@ function initDeliveryMap() {
   if (!mapEl || typeof L === 'undefined') return;
 
   try {
+    const existingLat = $('delivery-lat')?.value;
+    const existingLng = $('delivery-lng')?.value;
+    const center = (existingLat && existingLng) ? [parseFloat(existingLat), parseFloat(existingLng)] : DEFAULT_MAP_CENTER;
+
     deliveryMap = L.map('delivery-map', {
       zoomControl: true,
       attributionControl: false,
-    }).setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
+    }).setView(center, DEFAULT_MAP_ZOOM);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
     }).addTo(deliveryMap);
+
+    if (existingLat && existingLng) {
+      setDeliveryPin(existingLat, existingLng, false); // place visual marker
+    }
 
     // Click on map to place/move marker
     deliveryMap.on('click', (e) => {
@@ -474,27 +482,28 @@ function initDeliveryMap() {
 }
 
 function setDeliveryPin(lat, lng, shouldReverseGeocode = false) {
-  if (!deliveryMap || typeof L === 'undefined') return;
-
   const latFixed = Number(lat).toFixed(6);
   const lngFixed = Number(lng).toFixed(6);
 
   if ($('delivery-lat')) $('delivery-lat').value = latFixed;
   if ($('delivery-lng')) $('delivery-lng').value = lngFixed;
 
-  if (deliveryMarker) {
-    deliveryMarker.setLatLng([lat, lng]);
-  } else {
-    deliveryMarker = L.marker([lat, lng], { draggable: true }).addTo(deliveryMap);
-    deliveryMarker.on('dragend', (ev) => {
-      const pos = ev.target.getLatLng();
-      setDeliveryPin(pos.lat, pos.lng, true);
-    });
-  }
-
   const statusEl = $('pin-coords-display');
   if (statusEl) {
     statusEl.innerHTML = `<strong>${latFixed}, ${lngFixed}</strong> <a href="https://www.google.com/maps?q=${latFixed},${lngFixed}" target="_blank" rel="noopener" class="map-link-btn">View Map ↗</a>`;
+  }
+
+  // Update visual marker if map is ready
+  if (deliveryMap && typeof L !== 'undefined') {
+    if (deliveryMarker) {
+      deliveryMarker.setLatLng([lat, lng]);
+    } else {
+      deliveryMarker = L.marker([lat, lng], { draggable: true }).addTo(deliveryMap);
+      deliveryMarker.on('dragend', (ev) => {
+        const pos = ev.target.getLatLng();
+        setDeliveryPin(pos.lat, pos.lng, true);
+      });
+    }
   }
 
   // Reverse geocode via free Nominatim API to suggest/fill address if blank
@@ -683,6 +692,12 @@ function getNowTimeString() {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+function getOffsetTimeString(minutesOffset = 0) {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + minutesOffset);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 /**
  * Returns true if the given date string (YYYY-MM-DD) is a weekday (Mon–Thu).
  */
@@ -710,10 +725,11 @@ function setupDateTimeRules() {
     if (!timeInput) return;
     const today = getTodayDateString();
     if (dateInput.value === today) {
-      const now = getNowTimeString();
-      timeInput.min = now;
-      if (!timeInput.value || timeInput.value < now) {
-        timeInput.value = now;
+      // Minimum prep time buffer for today's orders
+      const minPrepTime = getOffsetTimeString(30);
+      timeInput.min = minPrepTime;
+      if (!timeInput.value || timeInput.value < minPrepTime) {
+        timeInput.value = minPrepTime;
       }
     } else {
       timeInput.removeAttribute('min');
@@ -776,10 +792,13 @@ function validateForm() {
     return false;
   }
 
-  if (date === today && time < nowTime) {
-    showToast('⚠️ Please choose a time that has not already passed.');
-    $('preferred-time').focus();
-    return false;
+  if (date === today) {
+    const minPrepTime = getOffsetTimeString(30);
+    if (time < minPrepTime) {
+      showToast('⚠️ Please allow at least 30 minutes for preparation.');
+      $('preferred-time').focus();
+      return false;
+    }
   }
 
   // ── Item check ────────────────────────────────────────────────────
@@ -859,6 +878,7 @@ async function placeOrder() {
       deliveryNotes: $('delivery-notes')?.value.trim() || '',
       orderDate: $('order-date').value,
       preferredTime: $('preferred-time').value,
+      paymentMethod: document.querySelector('input[name="payment-method"]:checked')?.value || 'COD',
       items: selectedItems,
       subtotal,
       deliveryFee,
@@ -1050,7 +1070,31 @@ function listenToOrderStatus(orderKey, deliveryType) {
   let previousStatus = null;
 
   activeStatusUnsubscribe = onValue(orderRef, (snapshot) => {
-    if (!snapshot.exists()) return;
+    if (!snapshot.exists()) {
+      showToast('This order was cancelled or deleted.');
+      
+      const badge = $('customer-status-badge');
+      if (badge) {
+        badge.className = 'status-current-badge';
+        badge.style.background = '#fee2e2';
+        badge.style.color = '#991b1b';
+        badge.textContent = '❌ Cancelled/Deleted';
+      }
+      
+      // Remove from local storage
+      try {
+        let stored = JSON.parse(localStorage.getItem('midori_active_order') || '[]');
+        if (Array.isArray(stored)) {
+          stored = stored.filter(o => o.key !== orderKey);
+          if (stored.length === 0) localStorage.removeItem('midori_active_order');
+          else localStorage.setItem('midori_active_order', JSON.stringify(stored));
+        } else if (stored.key === orderKey) {
+          localStorage.removeItem('midori_active_order');
+        }
+      } catch(e) {}
+      
+      return;
+    }
     const data = snapshot.val();
     const status = data.status || 'NEW';
 
@@ -1194,7 +1238,25 @@ function checkActiveOrder() {
       if (active.key) {
         const orderRef = ref(db, `orders/${active.key}`);
         onValue(orderRef, (snapshot) => {
-          if (!snapshot.exists()) return;
+          if (!snapshot.exists()) {
+            const statusEl = $(`banner-status-text-${index}`);
+            if (statusEl) {
+              statusEl.textContent = '❌ Cancelled/Deleted';
+            }
+            
+            // Remove from local storage
+            try {
+              let stored = JSON.parse(localStorage.getItem('midori_active_order') || '[]');
+              if (Array.isArray(stored)) {
+                stored = stored.filter(o => o.key !== active.key);
+                if (stored.length === 0) localStorage.removeItem('midori_active_order');
+                else localStorage.setItem('midori_active_order', JSON.stringify(stored));
+              } else if (stored.key === active.key) {
+                localStorage.removeItem('midori_active_order');
+              }
+            } catch(e) {}
+            return;
+          }
           const data = snapshot.val();
           const status = data.status || 'NEW';
           const deliveryType = active.orderData?.deliveryType || 'pickup';
@@ -1287,6 +1349,21 @@ function listenToDeliveryFee() {
 
 // Call the listener during init
 document.addEventListener('DOMContentLoaded', () => {
+  // Request notifications on load
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  // Request location on load
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setDeliveryPin(pos.coords.latitude, pos.coords.longitude, true);
+      }, 
+      (err) => console.warn('Location permission denied on load', err)
+    );
+  }
+
   buildProductList();
   setupDeliveryToggle();
   listenToMenu();
@@ -1313,4 +1390,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Apply date/time scheduling rules (weekdays = advance only, Fri–Sun = same-day allowed)
   setupDateTimeRules();
   listenToDeliveryFee();
+
+  // Payment Method toggles
+  document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const gcash = $('gcash-instructions');
+      if (!gcash) return;
+      if (e.target.value === 'GCash') {
+        gcash.classList.remove('hidden');
+      } else {
+        gcash.classList.add('hidden');
+      }
+    });
+  });
 });

@@ -402,6 +402,12 @@ function renderModal(order) {
       <span class="modal-info-label">Facebook</span>
       <span class="modal-info-value">${order.fbName}</span>
     </div>
+    <div class="modal-info-row">
+      <span class="modal-info-label">Payment</span>
+      <span class="modal-info-value" style="font-weight:700; color: ${order.paymentMethod === 'GCash' ? 'var(--green-700)' : 'inherit'}">
+        ${order.paymentMethod === 'GCash' ? '📱 GCash' : '💵 Cash / COD'}
+      </span>
+    </div>
 
     <div class="modal-section-title" style="margin-top:16px">Order Info</div>
     <div class="modal-info-row">
