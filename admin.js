@@ -890,41 +890,64 @@ window.handleImageUrlInput = function(url) {
   }
 };
 
+let currentCropper = null;
+
+window.closeCropModal = function() {
+  document.getElementById('crop-modal').classList.remove('open');
+  if (currentCropper) {
+    currentCropper.destroy();
+    currentCropper = null;
+  }
+};
+
+window.confirmCrop = function() {
+  if (!currentCropper) return;
+  const canvas = currentCropper.getCroppedCanvas({
+    width: 500,
+    height: 500,
+  });
+  if (canvas) {
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    setDrinkImagePreview(dataUrl);
+    const urlInput = document.getElementById('drink-image-url');
+    if (urlInput) urlInput.value = '';
+    closeCropModal();
+  }
+};
+
 window.handleImageUpload = function(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
   reader.onload = function(e) {
-    const img = new Image();
-    img.onload = function() {
-      const maxDim = 500;
-      let w = img.width;
-      let h = img.height;
-      if (w > maxDim || h > maxDim) {
-        if (w > h) {
-          h = Math.round((h * maxDim) / w);
-          w = maxDim;
-        } else {
-          w = Math.round((w * maxDim) / h);
-          h = maxDim;
-        }
-      }
+    const cropModal = document.getElementById('crop-modal');
+    const cropperImage = document.getElementById('cropper-image');
+    
+    if (currentCropper) {
+      currentCropper.destroy();
+      currentCropper = null;
+    }
 
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
+    // Must remove src and set it again for Cropper to catch it nicely sometimes
+    cropperImage.src = '';
+    cropperImage.src = e.target.result;
+    cropModal.classList.add('open');
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      setDrinkImagePreview(dataUrl);
-      const urlInput = document.getElementById('drink-image-url');
-      if (urlInput) urlInput.value = '';
-    };
-    img.src = e.target.result;
+    // Initialize Cropper after modal is visible to ensure correct dimensions
+    setTimeout(() => {
+      currentCropper = new Cropper(cropperImage, {
+        aspectRatio: 1, 
+        viewMode: 1,
+        autoCropArea: 1,
+        background: false,
+        dragMode: 'move'
+      });
+    }, 100);
   };
   reader.readAsDataURL(file);
+  // Reset input so the same file can trigger change again if needed
+  event.target.value = '';
 };
 
 window.saveDrink = async function(event) {

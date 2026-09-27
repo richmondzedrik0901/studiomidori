@@ -724,17 +724,18 @@ function setupDateTimeRules() {
   function applyTimeMin() {
     if (!timeInput) return;
     const today = getTodayDateString();
-    const minPrepTime = getOffsetTimeString(30);
+    const minPrepTime = getOffsetTimeString(25);
     
     if (dateInput.value === today) {
       // Minimum prep time buffer for today's orders
       timeInput.min = minPrepTime;
+      // Also update the value if it's empty OR if they let the time slip into the past while the page was open
       if (!timeInput.value || timeInput.value < minPrepTime) {
         timeInput.value = minPrepTime;
       }
     } else {
       timeInput.removeAttribute('min');
-      // If picking an advance date and time is empty, prefill with 30 mins from now anyway
+      // If picking an advance date and time is empty, prefill with 25 mins from now anyway
       if (!timeInput.value) {
         timeInput.value = minPrepTime;
       }
@@ -764,6 +765,10 @@ function setupDateTimeRules() {
   applyDateMin();
   dateInput.addEventListener('change', applyDateMin);
   timeInput?.addEventListener('change', applyTimeMin);
+
+  // Real-time update: keep pushing the minimum time forward every 60 seconds
+  // so if they stay on the page for a long time, the time doesn't get left in the past.
+  setInterval(applyTimeMin, 60000);
 }
 
 // ── Form Validation ──────────────────────────────────────────────────
