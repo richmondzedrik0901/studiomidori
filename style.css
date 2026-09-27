@@ -77,61 +77,64 @@ h3 {
 
 /* ── Header ── */
 .site-header {
-  background: var(--cream);
-  padding: 20px 20px 24px;
-  text-align: center;
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-600) 100%);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
-  overflow: hidden;
-  border-bottom: 1px solid var(--border);
+  overflow: visible;
+  border-bottom: none;
+  box-shadow: 0 4px 20px rgba(30, 45, 14, 0.35);
+  min-height: 52px;
+  z-index: 10;
 }
 
+/* Subtle decorative shimmer */
+.site-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Decorative matcha leaf motif */
 .site-header::after {
   content: '🍵';
   position: absolute;
-  font-size: 90px;
-  opacity: 0.05;
-  right: -10px;
-  top: -10px;
-  transform: rotate(-20deg);
+  font-size: 72px;
+  opacity: 0.06;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%) rotate(-15deg);
   pointer-events: none;
   user-select: none;
 }
 
+/* Logo wrapper — lets the image overflow the slim bar */
+.site-header-logo-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* logo overflows 50% above and below */
+  margin: -32px 0;
+  padding: 8px 0;
+  z-index: 2;
+}
+
 .logo-img {
-  height: 140px;
+  height: 96px;
   width: auto;
   display: block;
-  margin: 0 auto 4px;
-  position: relative;
-  transition: transform 0.3s ease;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.28));
+  transition: transform 0.3s ease, filter 0.3s ease;
 }
 
 .logo-img:hover {
-  transform: scale(1.03);
-}
-
-.site-header .logo {
-  font-family: 'Playfair Display', serif;
-  font-size: 30px;
-  font-weight: 700;
-  color: var(--text-dark);
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-  position: relative;
-}
-
-.site-header .logo span {
-  color: var(--text-mid);
-  font-style: italic;
-}
-
-.site-header .tagline {
-  font-size: 12px;
-  color: var(--text-soft);
-  font-weight: 600;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  position: relative;
+  transform: scale(1.04);
+  filter: drop-shadow(0 6px 18px rgba(0,0,0,0.38));
 }
 
 /* ── Container ── */
@@ -648,7 +651,7 @@ select {
 .success-screen {
   display: none;
   text-align: center;
-  padding: 32px 20px 48px;
+  padding: 52px 20px 48px;
 }
 
 .success-screen.visible {
@@ -1488,17 +1491,27 @@ select {
 }
 
 /* ── Responsive ── */
-@media (min-width: 600px) {
-  .site-header {
-    padding: 16px 20px 20px;
+@media (min-width: 480px) {
+  .logo-img {
+    height: 108px;
   }
 
-  .site-header .logo {
-    font-size: 36px;
+  .site-header-logo-wrap {
+    margin: -36px 0;
+  }
+}
+
+@media (min-width: 600px) {
+  .site-header {
+    padding: 10px 24px;
   }
 
   .logo-img {
-    height: 180px;
+    height: 120px;
+  }
+
+  .site-header-logo-wrap {
+    margin: -44px 0;
   }
 
   .product-img-wrap {
@@ -1512,6 +1525,61 @@ select {
 
   .product-name {
     font-size: 16px;
+  }
+}
+
+/* Mobile: improve touch targets and spacing */
+@media (max-width: 479px) {
+  .container {
+    padding: 0 12px 96px;
+  }
+
+  .card-body {
+    padding: 14px;
+  }
+
+  .card-header {
+    padding: 12px 14px;
+  }
+
+  .toggle-group label {
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+
+  .place-order-btn {
+    font-size: 16px;
+    padding: 16px;
+  }
+
+  .summary-table td {
+    font-size: 13px;
+  }
+
+  .product-img-wrap {
+    width: 80px;
+    height: 80px;
+  }
+
+  .product-card-inner {
+    grid-template-columns: 80px 1fr;
+  }
+
+  .product-name {
+    font-size: 14px;
+  }
+
+  .product-price {
+    font-size: 14px;
+  }
+
+  .mobile-sticky-cart {
+    padding: 10px 12px;
+  }
+
+  .sticky-cart-btn {
+    font-size: 13px;
+    padding: 10px 16px;
   }
 }
 
