@@ -1018,9 +1018,24 @@ function updateStatusTracker(status, deliveryType = 'pickup') {
       line.classList.remove('completed');
     }
   });
+  });
 }
 
-function listenToOrderStatus(orderKey, deliveryType) {
+const seenNotifications = new Set();
+function notifyCustomer(orderKey, orderNumber, label) {
+  const dedup = `${orderKey}_${label}`;
+  if (seenNotifications.has(dedup)) return;
+  seenNotifications.add(dedup);
+
+  showToast(`Order #${orderNumber}: ${label}`);
+  
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('Studio Midori Update', {
+      body: `Order #${orderNumber} status changed to: ${label}`,
+      icon: '/logo.png'
+    });
+  }
+}
   if (activeStatusUnsubscribe) {
     activeStatusUnsubscribe();
   }
@@ -1043,7 +1058,9 @@ function listenToOrderStatus(orderKey, deliveryType) {
     if (previousStatus && previousStatus !== status) {
       const mode = deliveryType === 'delivery' ? 'delivery' : 'pickup';
       const label = STATUS_CONFIG[mode][status]?.badge || status;
-      showToast(`Status updated: ${label}`);
+      // We don't have orderNumber here natively, so we just use a generic 'Update'
+      // or we can just pass the orderKey. The banner listener will have the orderNumber.
+      notifyCustomer(orderKey, '(See Tracker)', label);
     }
     previousStatus = status;
   }, (err) => {
@@ -1060,6 +1077,11 @@ function showSuccessScreen(order, orderKey) {
   const screen = $('success-screen');
   screen.classList.remove('hidden');
   screen.classList.add('visible');
+
+  // Ask for notification permission if not yet decided
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
 
   $('success-order-number').textContent = order.orderNumber;
   $('success-customer-name').textContent = order.name;
@@ -1159,6 +1181,9 @@ function checkActiveOrder() {
       </div>
     `).join('');
 
+    // Track previous status for notifications per active order
+    const bannerPreviousStatuses = {};
+
     validOrders.forEach((active, index) => {
       $(`view-active-order-btn-${index}`)?.addEventListener('click', () => {
         showSuccessScreen(active.orderData, active.key);
@@ -1179,6 +1204,12 @@ function checkActiveOrder() {
           if (statusEl) {
             statusEl.textContent = config.badge;
           }
+
+          // Trigger push notification if status changes (and not on first load)
+          if (bannerPreviousStatuses[active.key] && bannerPreviousStatuses[active.key] !== status) {
+            notifyCustomer(active.key, active.orderNumber, config.badge);
+          }
+          bannerPreviousStatuses[active.key] = status;
         }, (err) => {
           console.warn('Banner status listener error:', err);
         });

@@ -115,6 +115,33 @@ window.switchAdminSection = function(section) {
 // ORDERS MODULE
 // ══════════════════════════════════════════════════════════════════════
 
+let isInitialAdminLoad = true;
+let previousOrderKeys = new Set();
+
+function playAdminAlertSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+    osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
+
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
+}
+
 function startListeningOrders() {
   renderTabs();
 
@@ -130,6 +157,22 @@ function startListeningOrders() {
         });
         allOrders.reverse();
       }
+
+      if (!isInitialAdminLoad) {
+        const newOrders = allOrders.filter(o => o.status === 'NEW' && !previousOrderKeys.has(o._key));
+        if (newOrders.length > 0) {
+          playAdminAlertSound();
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('New Order Received! 🍵', {
+              body: `You have ${newOrders.length} new order(s) waiting.`,
+              icon: '/logo.png'
+            });
+          }
+        }
+      }
+
+      previousOrderKeys = new Set(allOrders.map(o => o._key));
+      isInitialAdminLoad = false;
 
       // Update badge in nav
       const newCount = allOrders.filter(o => o.status === 'NEW').length;
@@ -909,6 +952,11 @@ window.verifyAdminPasscode = function(e) {
     document.getElementById('admin-auth-overlay')?.classList.add('hidden');
     input.value = '';
     showToast('Welcome, Studio Midori Admin! 🍵');
+
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
     if (!isAuthorized) {
       isAuthorized = true;
       startListeningOrders();
