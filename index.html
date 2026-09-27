@@ -240,7 +240,7 @@
               Scan the QR code below using your GCash app.<br/>You can pay upon pickup or when the rider arrives.
             </p>
             <div style="background:#fff; border:1px solid var(--green-300); border-radius:12px; margin: 0 auto; display:inline-block; padding:8px;">
-              <img src="gcash-qr.png" alt="GCash QR Code" style="width:160px; height:auto; display:block; border-radius:8px;" />
+              <img src="gcash-qr.png" alt="GCash QR Code" style="width:160px; height:auto; display:block; border-radius:8px; cursor:zoom-in;" onclick="document.getElementById('image-modal-img').src=this.src; document.getElementById('image-modal').classList.remove('hidden');" />
             </div>
           </div>
         </div>
@@ -437,6 +437,15 @@
 
   <!-- ── Toast ── -->
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+
+  <!-- ══════════════════════════════════════════
+       IMAGE ZOOM MODAL
+  ══════════════════════════════════════════ -->
+  <div id="image-modal" class="image-modal hidden" onclick="this.classList.add('hidden')">
+    <div class="image-modal-content">
+      <img id="image-modal-img" src="" alt="Enlarged Image" />
+    </div>
+  </div>
 
   <script type="module" src="notification.js"></script>
   <script type="module" src="app.js"></script>
