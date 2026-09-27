@@ -1105,8 +1105,6 @@ function listenToOrderStatus(orderKey, deliveryType) {
       
       return;
     }
-    const data = snapshot.val();
-    const status = data.status || 'NEW';
 
     updateStatusTracker(status, deliveryType);
 
@@ -1318,7 +1316,9 @@ function checkActiveOrder() {
       if (active.key) {
         const orderRef = ref(db, `orders/${active.key}`);
         onValue(orderRef, (snapshot) => {
-          if (!snapshot.exists()) {
+          const data = snapshot.exists() ? snapshot.val() : null;
+          const status = data ? (data.status || 'NEW') : 'DELETED';
+          if (!data || status === 'COMPLETED' || status === 'CANCELLED') {
             const bannerDiv = $(`active-banner-${index}`);
             if (bannerDiv) {
               bannerDiv.style.opacity = '0';
@@ -1343,8 +1343,6 @@ function checkActiveOrder() {
             } catch(e) {}
             return;
           }
-          const data = snapshot.val();
-          const status = data.status || 'NEW';
           const deliveryType = active.orderData?.deliveryType || 'pickup';
           const mode = deliveryType === 'delivery' ? 'delivery' : 'pickup';
           
@@ -1488,5 +1486,33 @@ document.addEventListener('DOMContentLoaded', () => {
         gcash.classList.add('hidden');
       }
     });
+
   });
 });
+
+// ── Wizard Navigation ──
+window.nextWizardStep = function(step) {
+  if (step === 2) {
+    if (Object.keys(state.items).length === 0) {
+      showToast('⚠️ Please select at least one drink before continuing.');
+      return;
+    }
+  }
+
+  document.querySelectorAll('.wizard-step').forEach(el => {
+    el.classList.add('hidden');
+  });
+  
+  const target = document.getElementById(`wizard-step-${step}`);
+  if (target) {
+    target.classList.remove('hidden');
+    // Scroll to the top of the form area
+    const formArea = document.getElementById('order-form-area');
+    if (formArea) {
+      const topOffset = formArea.getBoundingClientRect().top + window.scrollY - 20;
+      window.scrollTo({ top: topOffset, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+};

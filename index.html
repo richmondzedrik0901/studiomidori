@@ -46,58 +46,52 @@
       <div id="active-order-banner-container"></div>
 
       <!-- ── Drinks ── -->
-      <div style="height:14px"></div>
-      <div class="card">
-        <div class="card-header">
-          <div class="step-num">1</div>
-          <div>
-            <h2>Choose Your Drinks</h2>
-            <div class="card-header-sub">Select drinks and customise each one</div>
-          </div>
-        </div>
-        <div class="card-body">
-          <!-- ── Category Filter Tabs (Matcha vs Hojicha) ── -->
-          <div class="menu-category-tabs" id="menu-category-tabs" role="tablist" aria-label="Filter drinks by series">
-            <button class="category-tab-btn active" onclick="setMenuCategory('all')" id="cat-tab-all">All
-              Drinks</button>
-            <button class="category-tab-btn" onclick="setMenuCategory('matcha')" id="cat-tab-matcha">🍵 Matcha
-              Series</button>
-            <button class="category-tab-btn" onclick="setMenuCategory('hojicha')" id="cat-tab-hojicha">🍂 Hojicha
-              Series</button>
-          </div>
-
-
-          <div id="product-list">
-            <!-- Skeleton loading placeholders (cleared by app.js) -->
-            <div class="skeleton-card">
-              <div class="skeleton-img"></div>
-              <div class="skeleton-body">
-                <div class="skeleton-line w70"></div>
-                <div class="skeleton-line w50"></div>
-                <div class="skeleton-line w30"></div>
-              </div>
+      <!-- WIZARD STEP 1: DRINKS -->
+      <div id="wizard-step-1" class="wizard-step">
+        <div style="height:14px"></div>
+        <div class="card">
+          <div class="card-header">
+            <div class="step-num">1</div>
+            <div>
+              <h2>Choose Your Drinks</h2>
+              <div class="card-header-sub">Select drinks and customise each one</div>
             </div>
-            <div class="skeleton-card">
-              <div class="skeleton-img"></div>
-              <div class="skeleton-body">
-                <div class="skeleton-line w70"></div>
-                <div class="skeleton-line w50"></div>
-                <div class="skeleton-line w30"></div>
-              </div>
+          </div>
+          <div class="card-body">
+            <!-- ── Category Filter Tabs (Matcha vs Hojicha) ── -->
+            <div class="menu-category-tabs" id="menu-category-tabs" role="tablist" aria-label="Filter drinks by series">
+              <button class="category-tab-btn active" onclick="setMenuCategory('all')" id="cat-tab-all">All Drinks</button>
+              <button class="category-tab-btn" onclick="setMenuCategory('matcha')" id="cat-tab-matcha">🍵 Matcha Series</button>
+              <button class="category-tab-btn" onclick="setMenuCategory('hojicha')" id="cat-tab-hojicha">🍂 Hojicha Series</button>
             </div>
-            <div class="skeleton-card">
-              <div class="skeleton-img"></div>
-              <div class="skeleton-body">
-                <div class="skeleton-line w70"></div>
-                <div class="skeleton-line w50"></div>
-                <div class="skeleton-line w30"></div>
+
+            <div id="product-list">
+              <!-- Skeleton loading placeholders (cleared by app.js) -->
+              <div class="skeleton-card">
+                <div class="skeleton-img"></div>
+                <div class="skeleton-body">
+                  <div class="skeleton-line w70"></div>
+                  <div class="skeleton-line w50"></div>
+                  <div class="skeleton-line w30"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+        
+        <button type="button" class="place-order-btn" style="margin-top:20px" onclick="window.nextWizardStep(2)">
+          Next: Delivery &amp; Details ➔
+        </button>
+      </div><!-- /wizard-step-1 -->
 
-      <!-- ── Customer Info ── -->
+      <!-- WIZARD STEP 2: DETAILS -->
+      <div id="wizard-step-2" class="wizard-step hidden">
+        <div style="height:14px"></div>
+        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:16px" onclick="window.nextWizardStep(1)">
+          ← Back to Menu
+        </button>
+
+        <!-- ── Customer Info ── -->
       <div class="card" id="customer-details-card">
         <div class="card-header">
           <div class="step-num">2</div>
@@ -223,10 +217,22 @@
             <span style="font-size:13px"><strong>Mon–Thu:</strong> Advance orders only &nbsp;·&nbsp;
               <strong>Fri–Sun:</strong> Today or advance</span>
           </div>
+          </div>
         </div>
-      </div>
+        
+        <button type="button" class="place-order-btn" style="margin-top:20px" onclick="window.nextWizardStep(3)">
+          Next: Payment ➔
+        </button>
+      </div><!-- /wizard-step-2 -->
 
-      <!-- ── Payment Method ── -->
+      <!-- WIZARD STEP 3: CHECKOUT -->
+      <div id="wizard-step-3" class="wizard-step hidden">
+        <div style="height:14px"></div>
+        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:16px" onclick="window.nextWizardStep(2)">
+          ← Back to Details
+        </button>
+
+        <!-- ── Payment Method ── -->
       <div class="card">
         <div class="card-header">
           <div class="step-num">5</div>
@@ -310,9 +316,10 @@
       </div>
 
       <!-- ── Place Order ── -->
-      <button class="place-order-btn" id="place-order-btn" type="button">
+      <button class="place-order-btn" id="place-order-btn" type="button" style="margin-top:20px">
         🍵 Place Order
       </button>
+      </div><!-- /wizard-step-3 -->
 
       <!-- ── Footer ── -->
       <footer
