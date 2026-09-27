@@ -548,6 +548,28 @@ window.changeStatus = async function(newStatus) {
   try {
     await update(ref(db, `orders/${currentFirebaseKey}`), { status: newStatus });
     showToast(`Status updated to ${newStatus} ✓`);
+
+    const order = allOrders.find(o => o._key === currentFirebaseKey);
+    const isDelivery = order && order.deliveryType === 'delivery';
+
+    let autoMessage = '';
+    if (newStatus === 'PREPARING') {
+      autoMessage = 'We have started preparing your order! 👩‍🍳 Est. (25-30mins)';
+    } else if (newStatus === 'READY') {
+      autoMessage = isDelivery ? 'Your order is on the way! 🛵' : 'Your order is ready for pickup! ✅';
+    } else if (newStatus === 'COMPLETED') {
+      autoMessage = 'Order completed! Thanks for ordering from Studio Midori! 💚';
+    }
+
+    if (autoMessage) {
+      push(ref(db, `chats/${currentFirebaseKey}`), {
+        sender: 'admin',
+        text: autoMessage,
+        timestamp: Date.now(),
+        read: false,
+        isAuto: true
+      }).catch(err => console.error('Failed to send auto message:', err));
+    }
   } catch (err) {
     console.error('Failed to update status:', err);
     showToast('Could not update status. Check connection.');
