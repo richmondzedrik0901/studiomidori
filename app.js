@@ -1166,7 +1166,7 @@ function checkActiveOrder() {
 
       // Subscribe to real-time status updates for the banner
       if (active.key) {
-        const orderRef = ref(db, \`orders/\${active.key}\`);
+        const orderRef = ref(db, `orders/${active.key}`);
         onValue(orderRef, (snapshot) => {
           if (!snapshot.exists()) return;
           const data = snapshot.val();
@@ -1175,7 +1175,7 @@ function checkActiveOrder() {
           const mode = deliveryType === 'delivery' ? 'delivery' : 'pickup';
           
           const config = (STATUS_CONFIG[mode] && STATUS_CONFIG[mode][status]) || STATUS_CONFIG[mode].NEW;
-          const statusEl = $(\`banner-status-text-\${index}\`);
+          const statusEl = $(`banner-status-text-${index}`);
           if (statusEl) {
             statusEl.textContent = config.badge;
           }
