@@ -791,11 +791,7 @@ function validateForm() {
   if (state.deliveryType === 'delivery') {
     const lat = $('delivery-lat')?.value;
     const lng = $('delivery-lng')?.value;
-    if (!lat || !lng) {
-      showToast('📍 Please pin your delivery location on the map.');
-      $('delivery-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return false;
-    }
+
 
     const address = $('delivery-address').value.trim();
     if (!address) {
@@ -882,12 +878,27 @@ async function placeOrder() {
 
     // Save active order to localStorage for returning visits
     try {
-      localStorage.setItem('midori_active_order', JSON.stringify({
+      const raw = localStorage.getItem('midori_active_order');
+      let activeOrders = [];
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            activeOrders = parsed;
+          } else if (parsed && parsed.key) {
+            activeOrders = [parsed];
+          }
+        } catch(e) {}
+      }
+
+      activeOrders.push({
         key: orderKey,
         orderNumber: order.orderNumber,
         orderData: order,
         timestamp: Date.now(),
-      }));
+      });
+
+      localStorage.setItem('midori_active_order', JSON.stringify(activeOrders));
     } catch (e) {
       console.warn('Could not save to localStorage:', e);
     }
@@ -1107,28 +1118,71 @@ function checkActiveOrder() {
   try {
     const raw = localStorage.getItem('midori_active_order');
     if (!raw) return;
-    const active = JSON.parse(raw);
 
-    // If order was placed in last 12 hours, show quick banner
-    if (Date.now() - active.timestamp > 12 * 60 * 60 * 1000) {
+    let activeOrders = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        activeOrders = parsed;
+      } else if (parsed && parsed.key) {
+        // Migration from object to array
+        activeOrders = [parsed];
+      }
+    } catch (e) {}
+
+    // If order was placed in last 12 hours, keep it
+    const twelveHours = 12 * 60 * 60 * 1000;
+    const now = Date.now();
+    const validOrders = activeOrders.filter(active => (now - active.timestamp) <= twelveHours);
+
+    if (validOrders.length === 0) {
       localStorage.removeItem('midori_active_order');
+      const container = $('active-order-banner-container');
+      if (container) container.innerHTML = '';
       return;
+    }
+
+    if (validOrders.length !== activeOrders.length) {
+      localStorage.setItem('midori_active_order', JSON.stringify(validOrders));
     }
 
     const container = $('active-order-banner-container');
     if (!container) return;
-    container.innerHTML = `
-      <div class="active-order-banner">
+
+    container.innerHTML = validOrders.map((active, index) => `
+      <div class="active-order-banner" style="margin-bottom: 8px;">
         <div>
           <strong>🍵 Order in Progress (#${active.orderNumber})</strong>
-          <div style="font-size:12px;opacity:0.9">Track live preparation & delivery status</div>
+          <div id="banner-status-text-${index}" style="font-size:13px;font-weight:700;margin-top:2px;">Loading live status...</div>
         </div>
-        <button class="active-order-banner-btn" id="view-active-order-btn">View Status ↗</button>
+        <button class="active-order-banner-btn" id="view-active-order-btn-${index}">View Status ↗</button>
       </div>
-    `;
+    `).join('');
 
-    $('view-active-order-btn')?.addEventListener('click', () => {
-      showSuccessScreen(active.orderData, active.key);
+    validOrders.forEach((active, index) => {
+      $(`view-active-order-btn-${index}`)?.addEventListener('click', () => {
+        showSuccessScreen(active.orderData, active.key);
+      });
+
+      // Subscribe to real-time status updates for the banner
+      if (active.key) {
+        const orderRef = ref(db, \`orders/\${active.key}\`);
+        onValue(orderRef, (snapshot) => {
+          if (!snapshot.exists()) return;
+          const data = snapshot.val();
+          const status = data.status || 'NEW';
+          const deliveryType = active.orderData?.deliveryType || 'pickup';
+          const mode = deliveryType === 'delivery' ? 'delivery' : 'pickup';
+          
+          const config = (STATUS_CONFIG[mode] && STATUS_CONFIG[mode][status]) || STATUS_CONFIG[mode].NEW;
+          const statusEl = $(\`banner-status-text-\${index}\`);
+          if (statusEl) {
+            statusEl.textContent = config.badge;
+          }
+        }, (err) => {
+          console.warn('Banner status listener error:', err);
+        });
+      }
     });
   } catch (e) {
     console.error('Error loading active order from storage:', e);
