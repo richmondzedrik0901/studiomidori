@@ -1114,6 +1114,75 @@ function listenToOrderStatus(orderKey, deliveryType) {
   });
 }
 
+// ── Customer Chat ───────────────────────────────────────────────────
+let customerChatUnsubscribe = null;
+
+function initCustomerChat(orderKey) {
+  const messagesContainer = $('customer-chat-messages');
+  const badge = $('customer-chat-badge');
+  const sendBtn = $('customer-chat-send');
+  const inputEl = $('customer-chat-input');
+  const chatBody = $('customer-chat-body');
+  
+  if (!messagesContainer || !sendBtn || !inputEl) return;
+  if (customerChatUnsubscribe) customerChatUnsubscribe();
+
+  const chatRef = ref(db, `chats/${orderKey}`);
+
+  customerChatUnsubscribe = onValue(chatRef, (snapshot) => {
+    messagesContainer.innerHTML = '';
+    let unreadCount = 0;
+    
+    if (snapshot.exists()) {
+      const messages = snapshot.val();
+      // sort by timestamp or relies on Firebase key order
+      Object.keys(messages).forEach(key => {
+        const msg = messages[key];
+        const div = document.createElement('div');
+        div.className = `chat-msg ${msg.sender === 'customer' ? 'customer-msg' : 'admin-msg'}`;
+        div.textContent = msg.text;
+        messagesContainer.appendChild(div);
+        
+        if (msg.sender === 'admin' && !msg.read) unreadCount++;
+      });
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    } else {
+      messagesContainer.innerHTML = `<div class="chat-msg admin-msg">Hi! Let us know if you have any questions or changes to your order. 🍵</div>`;
+    }
+
+    if (chatBody && chatBody.classList.contains('hidden') && unreadCount > 0) {
+      badge.textContent = unreadCount;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  });
+
+  sendBtn.onclick = () => {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.disabled = true; sendBtn.disabled = true;
+    
+    push(chatRef, { sender: 'customer', text: text, timestamp: Date.now(), read: false })
+      .then(() => { inputEl.value = ''; })
+      .catch(err => { console.error(err); showToast('Failed to send message.'); })
+      .finally(() => { inputEl.disabled = false; sendBtn.disabled = false; inputEl.focus(); });
+  };
+  
+  inputEl.onkeypress = (e) => { if (e.key === 'Enter') sendBtn.click(); };
+}
+
+window.toggleCustomerChat = function() {
+  const body = $('customer-chat-body');
+  if (body) {
+    body.classList.toggle('hidden');
+    if (!body.classList.contains('hidden')) {
+      $('customer-chat-badge').classList.add('hidden');
+      setTimeout(() => $('customer-chat-input').focus(), 100);
+    }
+  }
+};
+
 // ── Success Screen ───────────────────────────────────────────────────
 function showSuccessScreen(order, orderKey) {
   $('order-form-area').classList.add('hidden');
@@ -1176,6 +1245,7 @@ function showSuccessScreen(order, orderKey) {
 
   // Start real-time status listener
   listenToOrderStatus(orderKey, order.deliveryType);
+  initCustomerChat(orderKey);
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

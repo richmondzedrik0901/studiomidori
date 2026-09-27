@@ -369,6 +369,26 @@
         </div>
       </div>
 
+      <!-- ── Order Chat ── -->
+      <div class="order-chat-card" id="customer-chat-container">
+        <div class="chat-header" onclick="toggleCustomerChat()">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span>💬 Message Studio Midori</span>
+            <span class="chat-unread-badge hidden" id="customer-chat-badge">0</span>
+          </div>
+          <span style="font-size:12px; color:var(--text-soft)">Tap to toggle</span>
+        </div>
+        <div class="chat-body" id="customer-chat-body">
+          <div class="chat-messages" id="customer-chat-messages">
+            <div class="chat-msg admin-msg">Hi! Let us know if you have any questions or changes to your order. 🍵</div>
+          </div>
+          <div class="chat-input-row">
+            <input type="text" id="customer-chat-input" placeholder="Type a message..." autocomplete="off">
+            <button id="customer-chat-send" type="button">Send</button>
+          </div>
+        </div>
+      </div>
+
       <div class="success-detail-card">
         <div class="detail-row">
           <span class="detail-label">Name</span>

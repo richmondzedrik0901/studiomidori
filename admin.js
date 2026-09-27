@@ -310,6 +310,8 @@ window.openOrder = function(firebaseKey) {
   }
 };
 
+let adminChatUnsubscribe = null;
+
 window.closeModal = function() {
   document.getElementById('order-modal').classList.remove('open');
   document.body.style.overflow = '';
@@ -317,6 +319,10 @@ window.closeModal = function() {
   if (adminMiniMap) {
     adminMiniMap.remove();
     adminMiniMap = null;
+  }
+  if (adminChatUnsubscribe) {
+    adminChatUnsubscribe();
+    adminChatUnsubscribe = null;
   }
 };
 
@@ -453,6 +459,19 @@ function renderModal(order) {
         <span>₱${(order.total || 0).toLocaleString()}</span>
       </div>
     </div>
+
+    <div class="modal-section-title" style="margin-top:24px">Chat with Customer</div>
+    <div class="order-chat-card">
+      <div class="chat-body" id="admin-chat-body">
+        <div class="chat-messages" id="admin-chat-messages" style="height:200px">
+          <div class="chat-msg admin-msg">Loading chat...</div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="admin-chat-input" placeholder="Type a message..." autocomplete="off" onkeypress="if(event.key === 'Enter') sendAdminMessage('${order._key}')">
+          <button type="button" onclick="sendAdminMessage('${order._key}')">Send</button>
+        </div>
+      </div>
+    </div>
   `;
 
   document.getElementById('modal-status-buttons').innerHTML = statusBtns;
@@ -466,7 +485,62 @@ function renderModal(order) {
          </button>`
       : '';
   }
+
+  // Init chat
+  initAdminChat(order._key);
 }
+
+function initAdminChat(orderKey) {
+  const messagesContainer = document.getElementById('admin-chat-messages');
+  if (!messagesContainer) return;
+
+  if (adminChatUnsubscribe) {
+    adminChatUnsubscribe();
+  }
+
+  const chatRef = ref(db, `chats/${orderKey}`);
+  adminChatUnsubscribe = onValue(chatRef, (snapshot) => {
+    messagesContainer.innerHTML = '';
+    
+    if (snapshot.exists()) {
+      const messages = snapshot.val();
+      Object.keys(messages).forEach(key => {
+        const msg = messages[key];
+        const div = document.createElement('div');
+        div.className = `chat-msg ${msg.sender === 'admin' ? 'customer-msg' : 'admin-msg'}`; 
+        // We reuse the customer-msg class for the "self" styled bubble.
+        // On admin side, admin is green (customer-msg style), customer is grey (admin-msg style).
+        div.textContent = msg.text;
+        messagesContainer.appendChild(div);
+      });
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    } else {
+      messagesContainer.innerHTML = `<div class="chat-msg admin-msg" style="text-align:center; width:100%">No messages yet.</div>`;
+    }
+  });
+}
+
+window.sendAdminMessage = function(orderKey) {
+  const inputEl = document.getElementById('admin-chat-input');
+  const text = inputEl.value.trim();
+  if (!text) return;
+  
+  inputEl.disabled = true;
+  push(ref(db, `chats/${orderKey}`), {
+    sender: 'admin',
+    text: text,
+    timestamp: Date.now(),
+    read: false
+  }).then(() => {
+    inputEl.value = '';
+  }).catch(err => {
+    console.error(err);
+    showToast('Failed to send message.');
+  }).finally(() => {
+    inputEl.disabled = false;
+    inputEl.focus();
+  });
+};
 
 window.changeStatus = async function(newStatus) {
   if (!currentFirebaseKey) return;
