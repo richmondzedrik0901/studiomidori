@@ -803,9 +803,9 @@ function validateForm() {
   }
 
   if (date === today) {
-    const minPrepTime = getOffsetTimeString(30);
+    const minPrepTime = getOffsetTimeString(25);
     if (time < minPrepTime) {
-      showToast('⚠️ Please allow at least 30 minutes for preparation.');
+      showToast('⚠️ Please allow at least 25 minutes for preparation.');
       $('preferred-time').focus();
       return false;
     }
