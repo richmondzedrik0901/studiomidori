@@ -9,7 +9,12 @@ import {
 import { sendOrderNotification } from './notification.js';
 
 const SWEETNESS_OPTS = ['0%', '25%', '50%', '75%', '100%'];
-let DELIVERY_FEE = 60;
+// ── Delivery Fee Constants ──────────────────────────────────────────────
+const STORE_LAT = 17.601133; // Studio Midori base location
+const STORE_LNG = 120.612134;
+const FEE_BASE = 25;        // ₱25 base pay
+const FEE_PER_KM = 10;       // ₱10 per km
+let DELIVERY_FEE = 0;        // recalculated whenever a pin is set
 
 // ── Dynamic Menu State ────────────────────────────────────────────────
 let products = [];        // loaded from Firebase only
@@ -18,10 +23,13 @@ let addOns = {};          // loaded from Firebase only
 let storeSettings = {};   // loaded from Firebase only
 let selectedCategory = 'all'; // 'all', 'matcha', 'hojicha'
 
+let savedState = {};
+try { savedState = JSON.parse(localStorage.getItem('midori_order_state')) || {}; } catch (e) { }
+
 const state = {
   // keyed by instanceKey = `${productId}__${n}`, value = { productId, instanceIndex, matcha, sweetness, addOns[] }
-  items: {},
-  deliveryType: 'pickup',
+  items: savedState.items || {},
+  deliveryType: savedState.deliveryType || 'pickup',
 };
 
 // Returns all instance keys for a given productId, sorted
@@ -447,7 +455,7 @@ window.changeDrinkAddOnQty = function (instanceKey, addOnId, delta) {
 // ── Delivery Location Map Picker (Leaflet) ───────────────────────────
 let deliveryMap = null;
 let deliveryMarker = null;
-const DEFAULT_MAP_CENTER = [17.5951, 120.6185]; // Bangued, Abra, Philippines
+const DEFAULT_MAP_CENTER = [17.601133, 120.612134]; // Studio Midori Base Location
 const DEFAULT_MAP_ZOOM = 15;
 
 function initDeliveryMap() {
@@ -484,6 +492,9 @@ function initDeliveryMap() {
 
     // Setup GPS button
     $('btn-use-gps')?.addEventListener('click', locateUserWithGPS);
+
+    // Setup address search autocomplete
+    setupAddressAutocomplete();
   } catch (err) {
     console.warn('Map initialization failed:', err);
   }
@@ -518,26 +529,174 @@ function setDeliveryPin(lat, lng, shouldReverseGeocode = false) {
   if (shouldReverseGeocode) {
     reverseGeocode(lat, lng);
   }
+
+  // Always recalculate the delivery fee based on distance from store
+  calculateDistanceFee(lat, lng);
+}
+
+// ── Distance-based Delivery Fee ──────────────────────────────────────
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+    * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function calculateDistanceFee(lat, lng) {
+  const km = haversineKm(STORE_LAT, STORE_LNG, lat, lng);
+  DELIVERY_FEE = Math.round(FEE_BASE + FEE_PER_KM * km);
+
+  // Update distance label in the order summary
+  const distEl = $('summary-delivery-dist');
+  if (distEl) {
+    distEl.textContent = `(${km.toFixed(1)} km \u2022 \u20b1${FEE_BASE} base + \u20b1${FEE_PER_KM}\u00d7${km.toFixed(1)}km)`;
+    distEl.style.display = '';
+  }
+
+  updateSummary();
 }
 
 async function reverseGeocode(lat, lng) {
+  const addressInput = $('delivery-address');
+  if (!addressInput) return;
+
+  // Show a loading hint so the user knows something is happening
+  const prev = addressInput.value;
+  addressInput.placeholder = '🔍 Fetching address…';
+  addressInput.disabled = true;
+
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-      headers: { 'Accept': 'application/json' },
-    });
-    if (!res.ok) return;
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`,
+      { headers: { 'Accept': 'application/json', 'Accept-Language': 'en' } }
+    );
+    if (!res.ok) throw new Error('Nominatim error');
     const data = await res.json();
-    if (data && data.display_name) {
-      const addressInput = $('delivery-address');
-      if (addressInput && !addressInput.value.trim()) {
-        addressInput.value = data.display_name;
-      }
+
+    if (data && data.address) {
+      const a = data.address;
+      // Build a readable local address: house number + road + suburb/village + city
+      const parts = [
+        a.house_number,
+        a.road || a.pedestrian || a.footway,
+        a.suburb || a.village || a.hamlet || a.neighbourhood,
+        a.city || a.town || a.municipality || a.county,
+      ].filter(Boolean);
+      addressInput.value = parts.length > 0 ? parts.join(', ') : data.display_name;
+    } else if (data && data.display_name) {
+      addressInput.value = data.display_name;
+    } else {
+      addressInput.value = prev; // restore on no result
     }
   } catch (e) {
-    // Non-blocking reverse geocode failure
     console.debug('Reverse geocode note:', e);
+    addressInput.value = prev; // restore on error
+  } finally {
+    addressInput.placeholder = 'Street address, landmark, or barangay…';
+    addressInput.disabled = false;
+    addressInput.focus();
   }
 }
+
+// ── Address Autocomplete (forward geocode as-you-type) ─────────────────
+let _addressSearchTimer = null;
+
+function setupAddressAutocomplete() {
+  const input = $('delivery-address');
+  const list = $('address-suggestions');
+  if (!input || !list) return;
+
+  function hideSuggestions() {
+    list.style.display = 'none';
+    list.innerHTML = '';
+  }
+
+  function showSuggestions(results) {
+    if (!results.length) { hideSuggestions(); return; }
+    list.innerHTML = results.map((r, i) => `
+      <li data-idx="${i}"
+        style="
+          padding:10px 14px;
+          cursor:pointer;
+          font-size:13px;
+          border-bottom:1px solid var(--border);
+          line-height:1.4;
+          transition:background .12s;
+        "
+        onmouseover="this.style.background='var(--green-50,#f0fdf4)'"
+        onmouseout="this.style.background=''"
+      >
+        <span style="font-weight:700;color:var(--green-800)">&#x1F4CD; ${r.label}</span>
+        ${r.sublabel ? `<br><span style="color:var(--text-soft);font-size:11px">${r.sublabel}</span>` : ''}
+      </li>
+    `).join('');
+    list.style.display = 'block';
+
+    list.querySelectorAll('li').forEach((li, i) => {
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // prevent blur before click
+        const r = results[i];
+        input.value = r.label;
+        hideSuggestions();
+
+        // Pan & pin the map
+        if (r.lat && r.lng) {
+          if (deliveryMap) deliveryMap.setView([r.lat, r.lng], 16);
+          setDeliveryPin(r.lat, r.lng, false); // address already filled, skip reverse geocode
+        }
+      });
+    });
+  }
+
+  async function fetchSuggestions(query) {
+    try {
+      // Bias search toward Bangued, Abra area
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&addressdetails=1&limit=6&countrycodes=ph&viewbox=120.4,17.8,120.9,17.3&bounded=0`;
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'Accept-Language': 'en' }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const results = data.map(item => {
+        const a = item.address || {};
+        const labelParts = [
+          a.road || a.pedestrian || item.name,
+          a.suburb || a.village || a.hamlet || a.neighbourhood,
+          a.city || a.town || a.municipality || a.county,
+          a.province,
+        ].filter(Boolean);
+        const label = labelParts.join(', ') || item.display_name;
+        const sublabel = a.province || a.state || '';
+        return { label, sublabel: sublabel !== labelParts.at(-1) ? sublabel : '', lat: parseFloat(item.lat), lng: parseFloat(item.lon) };
+      });
+
+      showSuggestions(results);
+    } catch (e) {
+      console.debug('Address search error:', e);
+    }
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(_addressSearchTimer);
+    const q = input.value.trim();
+    if (q.length < 3) { hideSuggestions(); return; }
+    _addressSearchTimer = setTimeout(() => fetchSuggestions(q), 350); // debounce 350ms
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideSuggestions();
+  });
+
+  // Hide on click outside
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !list.contains(e.target)) hideSuggestions();
+  });
+}
+
 
 function locateUserWithGPS() {
   const gpsBtn = $('btn-use-gps');
@@ -579,27 +738,44 @@ function locateUserWithGPS() {
 
 // ── Delivery Toggle ──────────────────────────────────────────────────
 function setupDeliveryToggle() {
+  function applyDeliveryType(type) {
+    state.deliveryType = type;
+    const deliveryFields = $('delivery-fields');
+    const pickupFields = $('pickup-fields');
+    const timeLabel = $('preferred-time-label');
+    const whenSub = $('when-card-sub');
+    const timeModalTitle = $('time-modal-title');
+    const successDateLabel = $('success-date-label');
+
+    if (type === 'delivery') {
+      deliveryFields?.classList.remove('hidden');
+      pickupFields?.classList.add('hidden');
+      if (timeLabel) timeLabel.innerHTML = 'Delivery Time <span class="required">*</span>';
+      if (whenSub) whenSub.textContent = 'Pick your preferred date & delivery time';
+      if (timeModalTitle) timeModalTitle.textContent = 'Choose Delivery Time';
+      if (successDateLabel) successDateLabel.textContent = 'Date & Delivery Time';
+      setTimeout(() => {
+        initDeliveryMap();
+        if (deliveryMap) deliveryMap.invalidateSize(true);
+      }, 350);
+    } else {
+      deliveryFields?.classList.add('hidden');
+      pickupFields?.classList.remove('hidden');
+      if (timeLabel) timeLabel.innerHTML = 'Pick-up Time <span class="required">*</span>';
+      if (whenSub) whenSub.textContent = 'Pick your preferred date & pick-up time';
+      if (timeModalTitle) timeModalTitle.textContent = 'Choose Pick-up Time';
+      if (successDateLabel) successDateLabel.textContent = 'Date & Pick-up Time';
+    }
+    updateSummary();
+  }
+
   document.querySelectorAll('input[name="delivery-type"]').forEach(radio => {
-    radio.addEventListener('change', e => {
-      state.deliveryType = e.target.value;
-      const deliveryFields = $('delivery-fields');
-      const pickupFields = $('pickup-fields');
-      
-      if (state.deliveryType === 'delivery') {
-        deliveryFields?.classList.remove('hidden');
-        pickupFields?.classList.add('hidden');
-        // Initialize or recalculate map layout when shown
-        setTimeout(() => {
-          initDeliveryMap();
-          if (deliveryMap) deliveryMap.invalidateSize();
-        }, 100);
-      } else {
-        deliveryFields?.classList.add('hidden');
-        pickupFields?.classList.remove('hidden');
-      }
-      updateSummary();
-    });
+    radio.addEventListener('change', e => applyDeliveryType(e.target.value));
   });
+
+  // Sync visibility with whichever radio is already checked on load
+  const checked = document.querySelector('input[name="delivery-type"]:checked');
+  if (checked) applyDeliveryType(checked.value);
 }
 
 // ── Summary & Mobile Sticky Cart ─────────────────────────────────────
@@ -656,21 +832,45 @@ function updateSummary() {
     `;
   }).join('');
 
-  const deliveryFee = state.deliveryType === 'delivery' ? DELIVERY_FEE : 0;
+  const isDelivery = state.deliveryType === 'delivery';
+  const deliveryFee = isDelivery ? DELIVERY_FEE : 0;
   const total = subtotal + deliveryFee;
+  const hasPinned = !!($('delivery-lat')?.value);
 
   if ($('summary-items')) $('summary-items').innerHTML = itemRows;
-  if ($('summary-subtotal')) $('summary-subtotal').textContent = `₱${subtotal.toLocaleString()}`;
-  if ($('summary-delivery-row')) $('summary-delivery-row').style.display = deliveryFee > 0 ? '' : 'none';
-  if ($('summary-delivery-fee')) $('summary-delivery-fee').textContent = `₱${deliveryFee.toLocaleString()}`;
-  if ($('summary-total')) $('summary-total').textContent = `₱${total.toLocaleString()}`;
+  if ($('summary-subtotal')) $('summary-subtotal').textContent = `\u20b1${subtotal.toLocaleString()}`;
+  if ($('summary-delivery-row')) $('summary-delivery-row').style.display = isDelivery ? '' : 'none';
+  if ($('summary-delivery-fee')) {
+    $('summary-delivery-fee').textContent = isDelivery && hasPinned
+      ? `\u20b1${deliveryFee.toLocaleString()}`
+      : (isDelivery ? 'Pin location' : '\u20b10');
+  }
+  if ($('summary-total')) $('summary-total').textContent = `\u20b1${total.toLocaleString()}`;
 
   // Update sticky cart on mobile
   if (stickyCart && totalQty > 0) {
     stickyCart.classList.remove('hidden');
     if ($('sticky-cart-count')) $('sticky-cart-count').textContent = `${totalQty} drink${totalQty > 1 ? 's' : ''}`;
-    if ($('sticky-cart-total')) $('sticky-cart-total').textContent = `₱${total.toLocaleString()}`;
+    // Show final total as main price
+    if ($('sticky-cart-total')) $('sticky-cart-total').textContent = `\u20b1${total.toLocaleString()}`;
+    // Show shipping fee separately when delivery is selected and pin is placed
+    const shippingEl = $('sticky-cart-shipping');
+    if (shippingEl) {
+      if (isDelivery && hasPinned && deliveryFee > 0) {
+        shippingEl.textContent = `(\u20b1${subtotal.toLocaleString()} + \u20b1${deliveryFee.toLocaleString()} shipping)`;
+        shippingEl.style.color = 'var(--text-soft)';
+        shippingEl.style.display = '';
+      } else if (isDelivery && !hasPinned) {
+        shippingEl.textContent = '+ shipping (pin your location)';
+        shippingEl.style.color = 'var(--green-600)';
+        shippingEl.style.display = '';
+      } else {
+        shippingEl.style.display = 'none';
+      }
+    }
   }
+
+  try { localStorage.setItem('midori_order_state', JSON.stringify(state)); } catch (e) { }
 }
 
 // ── Scheduling Rules ─────────────────────────────────────────────────
@@ -729,6 +929,15 @@ function isBlackoutDate(dateStr) {
   return !!(storeSettings && Array.isArray(storeSettings.blackoutDates) && storeSettings.blackoutDates.includes(dateStr));
 }
 
+function highlightTimeError() {
+  const timeInput = $('preferred-time');
+  if (timeInput) {
+    timeInput.focus();
+    timeInput.classList.add('error-pulse');
+    setTimeout(() => timeInput.classList.remove('error-pulse'), 1200);
+  }
+}
+
 function setupDateTimeRules() {
   const dateInput = $('order-date');
   const timeInput = $('preferred-time');
@@ -737,37 +946,47 @@ function setupDateTimeRules() {
   const timeContainer = dateGroup ? dateGroup.parentElement : null;
   const timingRadios = document.querySelectorAll('input[name="order-timing"]');
 
-  if (!dateInput) return;
+  if (!dateInput || !timeInput) return;
+
+  // Clicking anywhere on the input opens browser's native clock picker
+  timeInput.addEventListener('click', () => {
+    if (typeof timeInput.showPicker === 'function') {
+      try {
+        timeInput.showPicker();
+      } catch (err) {}
+    }
+  });
 
   function applyTimeMin() {
     if (!timeInput) return;
     const today = getTodayDateString();
     const minPrepTime = getOffsetTimeString(25);
-    
+
+    let effectiveMin = '09:00';
     if (dateInput.value === today) {
-      // Minimum prep time buffer for today's orders
-      timeInput.min = minPrepTime;
-      if (!timeInput.value || timeInput.value < minPrepTime) {
-        timeInput.value = minPrepTime;
-      }
-    } else {
-      timeInput.removeAttribute('min');
-      if (!timeInput.value) {
-        timeInput.value = minPrepTime;
+      effectiveMin = (minPrepTime > '09:00') ? minPrepTime : '09:00';
+    }
+
+    timeInput.min = effectiveMin;
+    timeInput.max = '21:00';
+
+    if (!timeInput.value || timeInput.value < effectiveMin) {
+      if (effectiveMin <= '21:00') {
+        timeInput.value = effectiveMin;
       }
     }
   }
 
   function applyDateMin() {
     const isTodayMode = $('timing-today')?.checked;
-    
+
     if (isTodayMode) {
       if (dateGroup) dateGroup.style.display = 'none';
       if (timeContainer) timeContainer.style.gridTemplateColumns = '1fr';
-      
+
       dateInput.value = getTodayDateString();
       dateInput.min = getTodayDateString();
-      
+
       if (hintEl) {
         hintEl.textContent = '🕒 Ordering for today. Please allow 25-30 mins prep time.';
         hintEl.className = 'order-date-hint hint-weekend';
@@ -775,13 +994,13 @@ function setupDateTimeRules() {
     } else {
       if (dateGroup) dateGroup.style.display = '';
       if (timeContainer) timeContainer.style.gridTemplateColumns = '1fr 1fr';
-      
+
       const tomorrow = getTomorrowDateString();
       dateInput.min = tomorrow;
       if (!dateInput.value || dateInput.value < tomorrow) {
         dateInput.value = tomorrow;
       }
-      
+
       if (hintEl) {
         hintEl.textContent = '📅 Advance order for tomorrow or a later date.';
         hintEl.className = 'order-date-hint hint-advance';
@@ -802,23 +1021,23 @@ function setupDateTimeRules() {
   if (todayIsRestricted) {
     if ($('timing-advance')) $('timing-advance').checked = true;
     if ($('timing-today')) {
-       $('timing-today').disabled = true;
-       const labelToday = $('label-timing-today');
-       if (labelToday) {
-         labelToday.style.opacity = '0.5';
-         labelToday.style.cursor = 'not-allowed';
-         labelToday.title = isBlackoutDate(getTodayDateString()) ? 'We are closed today.' : 'Today is a weekday. Only advance orders are accepted.';
-       }
+      $('timing-today').disabled = true;
+      const labelToday = $('label-timing-today');
+      if (labelToday) {
+        labelToday.style.opacity = '0.5';
+        labelToday.style.cursor = 'not-allowed';
+        labelToday.title = isBlackoutDate(getTodayDateString()) ? 'We are closed today.' : 'Today is a weekday. Only advance orders are accepted.';
+      }
     }
   } else {
     if ($('timing-today')) {
-       $('timing-today').disabled = false;
-       const labelToday = $('label-timing-today');
-       if (labelToday) {
-         labelToday.style.opacity = '1';
-         labelToday.style.cursor = 'pointer';
-         labelToday.title = '';
-       }
+      $('timing-today').disabled = false;
+      const labelToday = $('label-timing-today');
+      if (labelToday) {
+        labelToday.style.opacity = '1';
+        labelToday.style.cursor = 'pointer';
+        labelToday.title = '';
+      }
     }
   }
 
@@ -857,7 +1076,6 @@ function setupDateTimeRules() {
     }
     applyDateMin();
   });
-  timeInput?.addEventListener('change', applyTimeMin);
 
   // Real-time update: keep pushing the minimum time forward every 60 seconds
   setInterval(applyTimeMin, 60000);
@@ -866,16 +1084,24 @@ function setupDateTimeRules() {
 // ── Form Validation ──────────────────────────────────────────────────
 function validateForm() {
   const name = $('customer-name').value.trim();
-  const fbName = $('fb-name').value.trim();
   const mobile = $('mobile-number').value.trim();
   const date = $('order-date').value;
   const time = $('preferred-time').value;
 
   if (!name) { showToast('Please enter your name.'); $('customer-name').focus(); return false; }
-  if (!fbName) { showToast('Please enter your Facebook name.'); $('fb-name').focus(); return false; }
   if (!mobile) { showToast('Please enter your mobile number.'); $('mobile-number').focus(); return false; }
   if (!date) { showToast('Please choose an order date.'); $('order-date').focus(); return false; }
-  if (!time) { showToast('Please choose a preferred time.'); $('preferred-time').focus(); return false; }
+  if (!time) {
+    showToast(state.deliveryType === 'delivery' ? 'Please choose a preferred delivery time.' : 'Please choose a preferred pick-up time.');
+    highlightTimeError();
+    return false;
+  }
+
+  if (time < '09:00' || time > '21:00') {
+    showToast('⚠️ We only accept orders for 9:00 AM to 9:00 PM.');
+    highlightTimeError();
+    return false;
+  }
 
   // ── Scheduling rule check ──────────────────────────────────────────
   const today = getTodayDateString();
@@ -904,7 +1130,7 @@ function validateForm() {
     const minPrepTime = getOffsetTimeString(25);
     if (time < minPrepTime) {
       showToast('⚠️ Please allow at least 25 minutes for preparation.');
-      $('preferred-time').focus();
+      highlightTimeError();
       return false;
     }
   }
@@ -919,6 +1145,11 @@ function validateForm() {
     const lat = $('delivery-lat')?.value;
     const lng = $('delivery-lng')?.value;
 
+    if (!lat || !lng) {
+      showToast('⚠️ Please pin your delivery location on the map.');
+      $('delivery-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
 
     const address = $('delivery-address').value.trim();
     if (!address) {
@@ -976,7 +1207,6 @@ async function placeOrder() {
       timestamp: new Date().toISOString(),
       status: 'NEW',
       name: $('customer-name').value.trim(),
-      fbName: $('fb-name').value.trim(),
       mobile: $('mobile-number').value.trim(),
       deliveryType: state.deliveryType,
       latitude: orderLat,
@@ -1016,7 +1246,7 @@ async function placeOrder() {
           } else if (parsed && parsed.key) {
             activeOrders = [parsed];
           }
-        } catch(e) {}
+        } catch (e) { }
       }
 
       activeOrders.push({
@@ -1027,6 +1257,10 @@ async function placeOrder() {
       });
 
       localStorage.setItem('midori_active_order', JSON.stringify(activeOrders));
+
+      // Clear persistence after successful order
+      localStorage.removeItem('midori_order_state');
+      localStorage.removeItem('midori_form_state');
     } catch (e) {
       console.warn('Could not save to localStorage:', e);
     }
@@ -1155,7 +1389,7 @@ function notifyCustomer(orderKey, orderNumber, label) {
   seenNotifications.add(dedup);
 
   showToast(`Order #${orderNumber}: ${label}`);
-  
+
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification('Studio Midori Update', {
       body: `Order #${orderNumber} status changed to: ${label}`,
@@ -1180,7 +1414,7 @@ function listenToOrderStatus(orderKey, deliveryType) {
   activeStatusUnsubscribe = onValue(orderRef, (snapshot) => {
     if (!snapshot.exists()) {
       showToast('This order was cancelled or deleted.');
-      
+
       const badge = $('customer-status-badge');
       if (badge) {
         badge.className = 'status-current-badge';
@@ -1188,7 +1422,7 @@ function listenToOrderStatus(orderKey, deliveryType) {
         badge.style.color = '#991b1b';
         badge.textContent = '❌ Cancelled/Deleted';
       }
-      
+
       // Remove from local storage
       try {
         let stored = JSON.parse(localStorage.getItem('midori_active_order') || '[]');
@@ -1199,8 +1433,8 @@ function listenToOrderStatus(orderKey, deliveryType) {
         } else if (stored.key === orderKey) {
           localStorage.removeItem('midori_active_order');
         }
-      } catch(e) {}
-      
+      } catch (e) { }
+
       return;
     }
 
@@ -1229,7 +1463,7 @@ function initCustomerChat(orderKey) {
   const sendBtn = $('customer-chat-send');
   const inputEl = $('customer-chat-input');
   const chatBody = $('customer-chat-body');
-  
+
   if (!messagesContainer || !sendBtn || !inputEl) return;
   if (customerChatUnsubscribe) customerChatUnsubscribe();
 
@@ -1238,7 +1472,7 @@ function initCustomerChat(orderKey) {
   customerChatUnsubscribe = onValue(chatRef, (snapshot) => {
     messagesContainer.innerHTML = '';
     let unreadCount = 0;
-    
+
     if (snapshot.exists()) {
       const messages = snapshot.val();
       // sort by timestamp or relies on Firebase key order
@@ -1248,7 +1482,7 @@ function initCustomerChat(orderKey) {
         div.className = `chat-msg ${msg.sender === 'customer' ? 'customer-msg' : 'admin-msg'}`;
         div.textContent = msg.text;
         messagesContainer.appendChild(div);
-        
+
         if (msg.sender === 'admin' && !msg.read) unreadCount++;
       });
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -1268,17 +1502,17 @@ function initCustomerChat(orderKey) {
     const text = inputEl.value.trim();
     if (!text) return;
     inputEl.disabled = true; sendBtn.disabled = true;
-    
+
     push(chatRef, { sender: 'customer', text: text, timestamp: Date.now(), read: false })
       .then(() => { inputEl.value = ''; })
       .catch(err => { console.error(err); showToast('Failed to send message.'); })
       .finally(() => { inputEl.disabled = false; sendBtn.disabled = false; inputEl.focus(); });
   };
-  
+
   inputEl.onkeypress = (e) => { if (e.key === 'Enter') sendBtn.click(); };
 }
 
-window.toggleCustomerChat = function() {
+window.toggleCustomerChat = function () {
   const body = $('customer-chat-body');
   if (body) {
     body.classList.toggle('hidden');
@@ -1306,7 +1540,6 @@ function showSuccessScreen(order, orderKey) {
   $('success-order-number').textContent = order.orderNumber;
   $('success-customer-name').textContent = order.name;
   $('success-mobile').textContent = order.mobile;
-  $('success-fb').textContent = order.fbName;
 
   const typeLabel = order.deliveryType === 'pickup'
     ? '🏪 Pickup'
@@ -1371,7 +1604,7 @@ function checkActiveOrder() {
         // Migration from object to array
         activeOrders = [parsed];
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // If order was placed in last 12 hours, keep it
     const twelveHours = 12 * 60 * 60 * 1000;
@@ -1427,7 +1660,7 @@ function checkActiveOrder() {
                 }
               }, 300);
             }
-            
+
             // Remove from local storage
             try {
               let stored = JSON.parse(localStorage.getItem('midori_active_order') || '[]');
@@ -1438,12 +1671,12 @@ function checkActiveOrder() {
               } else if (stored.key === active.key) {
                 localStorage.removeItem('midori_active_order');
               }
-            } catch(e) {}
+            } catch (e) { }
             return;
           }
           const deliveryType = active.orderData?.deliveryType || 'pickup';
           const mode = deliveryType === 'delivery' ? 'delivery' : 'pickup';
-          
+
           const config = (STATUS_CONFIG[mode] && STATUS_CONFIG[mode][status]) || STATUS_CONFIG[mode].NEW;
           const statusEl = $(`banner-status-text-${index}`);
           if (statusEl) {
@@ -1497,21 +1730,21 @@ function listenToDeliveryFee() {
     const data = snapshot.val() || {};
     const select = $('delivery-area');
     if (!select) return;
-    
+
     // Remember current selection if any
     const currentVal = select.value;
-    
+
     let html = '<option value="">Select your area...</option>';
     let foundCurrent = false;
-    
+
     Object.entries(data).forEach(([id, loc]) => {
       const feeText = loc.fee === 0 ? 'Free Delivery' : `+₱${loc.fee}`;
       html += `<option value="${loc.fee}">${loc.name} (${feeText})</option>`;
       if (currentVal === loc.fee.toString()) foundCurrent = true;
     });
-    
+
     select.innerHTML = html;
-    
+
     if (foundCurrent) {
       select.value = currentVal;
     } else {
@@ -1519,7 +1752,7 @@ function listenToDeliveryFee() {
     }
     updateSummary();
   }, (err) => console.warn('Could not load delivery locations:', err));
-  
+
   const select = $('delivery-area');
   if (select) {
     select.addEventListener('change', (e) => {
@@ -1529,22 +1762,37 @@ function listenToDeliveryFee() {
   }
 }
 
+// ── Form State Persistence ───────────────────────────────────────────
+const FORM_FIELDS = [
+  'customer-name', 'mobile-number',
+  'order-date', 'preferred-time',
+  'delivery-lat', 'delivery-lng', 'delivery-address', 'delivery-notes'
+];
+function saveFormState() {
+  const formData = {};
+  FORM_FIELDS.forEach(id => { const el = $(id); if (el) formData[id] = el.value; });
+  try { localStorage.setItem('midori_form_state', JSON.stringify(formData)); } catch (e) { }
+}
+function restoreFormState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('midori_form_state'));
+    if (saved) {
+      FORM_FIELDS.forEach(id => { const el = $(id); if (el && saved[id]) el.value = saved[id]; });
+    }
+  } catch (e) { }
+}
+
 // Call the listener during init
 document.addEventListener('DOMContentLoaded', () => {
+  restoreFormState();
+  $('order-form-area')?.addEventListener('input', saveFormState);
+  $('order-form-area')?.addEventListener('change', saveFormState);
+
   // Request notifications on load
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
   }
 
-  // Request location on load
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setDeliveryPin(pos.coords.latitude, pos.coords.longitude, true);
-      }, 
-      (err) => console.warn('Location permission denied on load', err)
-    );
-  }
 
   buildProductList();
   setupDeliveryToggle();
@@ -1554,14 +1802,13 @@ document.addEventListener('DOMContentLoaded', () => {
   $('place-order-btn').addEventListener('click', placeOrder);
 
   $('sticky-cart-btn')?.addEventListener('click', () => {
-    // Scroll to Order Summary (and Place Order button below it)
-    const summary = $('order-summary');
-    const isHidden = !summary || summary.classList.contains('hidden');
-    const target = (!isHidden ? summary : null)
-                   || $('customer-details-card')
-                   || $('place-order-btn');
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!$('wizard-step-1').classList.contains('hidden')) {
+      window.nextWizardStep(2);
+    } else if (!$('wizard-step-2').classList.contains('hidden')) {
+      window.nextWizardStep(3);
+    } else {
+      // Step 3: Trigger Place Order
+      $('place-order-btn')?.click();
     }
   });
 
@@ -1589,18 +1836,78 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Wizard Navigation ──
-window.nextWizardStep = function(step) {
+window.nextWizardStep = function (step) {
   if (step === 2) {
     if (Object.keys(state.items).length === 0) {
       showToast('⚠️ Please select at least one drink before continuing.');
       return;
+    }
+  } else if (step === 3) {
+    // Validate Step 2 (Logistics) before going to Step 3
+    const date = $('order-date').value;
+    const time = $('preferred-time').value;
+
+    if (!date) { showToast('Please choose an order date.'); $('order-date').focus(); return false; }
+    if (!time) {
+      showToast(state.deliveryType === 'delivery' ? 'Please choose a preferred delivery time.' : 'Please choose a preferred pick-up time.');
+      highlightTimeError();
+      return false;
+    }
+
+    if (time < '09:00' || time > '21:00') {
+      showToast('⚠️ We only accept orders for 9:00 AM to 9:00 PM.');
+      highlightTimeError();
+      return false;
+    }
+
+    const today = getTodayDateString();
+    const tomorrow = getTomorrowDateString();
+
+    if (date < today) {
+      showToast('⚠️ Please choose today or a later date.');
+      $('order-date').focus();
+      return false;
+    }
+    if (isBlackoutDate(date)) {
+      showToast('⚠️ We are closed on that date. Please choose another date.');
+      $('order-date').focus();
+      return false;
+    }
+    if (isWeekday(today) && !storeSettings.forceOrderNow && date < tomorrow) {
+      showToast('⚠️ Weekday orders must be placed in advance (tomorrow or later).');
+      $('order-date').focus();
+      return false;
+    }
+    if (date === today) {
+      const minPrepTime = getOffsetTimeString(25);
+      if (time < minPrepTime) {
+        showToast('⚠️ Please allow at least 25 minutes for preparation.');
+        highlightTimeError();
+        return false;
+      }
+    }
+
+    if (state.deliveryType === 'delivery') {
+      const lat = $('delivery-lat')?.value;
+      const lng = $('delivery-lng')?.value;
+      if (!lat || !lng) {
+        showToast('⚠️ Please pin your delivery location on the map.');
+        $('delivery-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+      }
+      const address = $('delivery-address').value.trim();
+      if (!address) {
+        showToast('Please enter your delivery address / landmark.');
+        $('delivery-address').focus();
+        return false;
+      }
     }
   }
 
   document.querySelectorAll('.wizard-step').forEach(el => {
     el.classList.add('hidden');
   });
-  
+
   const target = document.getElementById(`wizard-step-${step}`);
   if (target) {
     target.classList.remove('hidden');

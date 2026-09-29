@@ -10,7 +10,8 @@
 
   <!-- Open Graph / Link Preview Meta Tags -->
   <meta property="og:title" content="Order – Studio Midori 🍵" />
-  <meta property="og:description" content="Order your favourite matcha drinks from Studio Midori. Pickup or delivery available." />
+  <meta property="og:description"
+    content="Order your favourite matcha drinks from Studio Midori. Pickup or delivery available." />
   <meta property="og:image" content="https://studio-midori.vercel.app/banner.png" />
   <meta property="og:url" content="https://studio-midori.vercel.app/" />
   <meta property="og:type" content="website" />
@@ -60,9 +61,12 @@
           <div class="card-body">
             <!-- ── Category Filter Tabs (Matcha vs Hojicha) ── -->
             <div class="menu-category-tabs" id="menu-category-tabs" role="tablist" aria-label="Filter drinks by series">
-              <button class="category-tab-btn active" onclick="setMenuCategory('all')" id="cat-tab-all">All Drinks</button>
-              <button class="category-tab-btn" onclick="setMenuCategory('matcha')" id="cat-tab-matcha">🍵 Matcha Series</button>
-              <button class="category-tab-btn" onclick="setMenuCategory('hojicha')" id="cat-tab-hojicha">🍂 Hojicha Series</button>
+              <button class="category-tab-btn active" onclick="setMenuCategory('all')" id="cat-tab-all">All
+                Drinks</button>
+              <button class="category-tab-btn" onclick="setMenuCategory('matcha')" id="cat-tab-matcha">🍵 Matcha
+                Series</button>
+              <button class="category-tab-btn" onclick="setMenuCategory('hojicha')" id="cat-tab-hojicha">🍂 Hojicha
+                Series</button>
             </div>
 
             <div id="product-list">
@@ -78,255 +82,284 @@
             </div>
           </div>
         </div>
-        
+
         <button type="button" class="place-order-btn" style="margin-top:20px" onclick="window.nextWizardStep(2)">
-          Next: Delivery &amp; Details ➔
+          Next: How &amp; When &#10132;
         </button>
       </div><!-- /wizard-step-1 -->
 
-      <!-- WIZARD STEP 2: DETAILS -->
+      <!-- WIZARD STEP 2: LOGISTICS -->
       <div id="wizard-step-2" class="wizard-step hidden">
         <div style="height:14px"></div>
-        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:16px" onclick="window.nextWizardStep(1)">
-          ← Back to Menu
+        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:16px"
+          onclick="window.nextWizardStep(1)">
+          &#8592; Back to Menu
         </button>
 
-        <!-- ── Customer Info ── -->
-      <div class="card" id="customer-details-card">
-        <div class="card-header">
-          <div class="step-num">2</div>
-          <div>
-            <h2>Your Details</h2>
-            <div class="card-header-sub">Name, Facebook, and mobile number</div>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="form-group">
-            <label for="customer-name">Full Name <span class="required">*</span></label>
-            <input type="text" id="customer-name" placeholder="e.g. Maria Santos" autocomplete="name" />
-          </div>
-          <div class="form-group">
-            <label for="fb-name">Facebook Name <span class="required">*</span></label>
-            <input type="text" id="fb-name" placeholder="Your exact Facebook display name" />
-          </div>
-          <div class="form-group">
-            <label for="mobile-number">Mobile Number <span class="required">*</span></label>
-            <input type="tel" id="mobile-number" placeholder="09XX XXX XXXX" autocomplete="tel" inputmode="tel" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Pickup or Delivery ── -->
-      <div class="card">
-        <div class="card-header">
-          <div class="step-num">3</div>
-          <div>
-            <h2>Order Type</h2>
-            <div class="card-header-sub">Store pickup or home delivery</div>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="form-group">
-            <div class="toggle-group">
-              <input type="radio" name="delivery-type" id="type-pickup" value="pickup" checked />
-              <label for="type-pickup">🏪 Pickup</label>
-              <input type="radio" name="delivery-type" id="type-delivery" value="delivery" />
-              <label for="type-delivery">🛵 Delivery</label>
+        <!-- ── Pickup or Delivery ── -->
+        <div class="card">
+          <div class="card-header">
+            <div class="step-num">2</div>
+            <div>
+              <h2>Order Type</h2>
+              <div class="card-header-sub">Store pickup or home delivery</div>
             </div>
           </div>
-
-          <!-- Pickup Fields -->
-          <div id="pickup-fields">
+          <div class="card-body">
             <div class="form-group">
-              <label>Store Location</label>
-              <div style="border-radius: 12px; overflow: hidden; margin-top: 8px; border: 1px solid var(--border);">
-                <iframe width="100%" height="250" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"
-                  src="https://maps.google.com/maps?q=Aspacio%20Panciteria,%20Mabini%20St,%20Bangued,%20Abra&t=&z=16&ie=UTF8&iwloc=&output=embed">
-                </iframe>
+              <div class="toggle-group">
+                <input type="radio" name="delivery-type" id="type-pickup" value="pickup" checked />
+                <label for="type-pickup">🏪 Pickup</label>
+                <input type="radio" name="delivery-type" id="type-delivery" value="delivery" />
+                <label for="type-delivery">🛵 Delivery</label>
               </div>
-              <p class="map-help-text" style="margin-top: 8px; text-align: center;">Aspacio Panciteria, Mabini St, Zone
-                3, Bangued, Abra</p>
             </div>
-          </div>
 
-          <!-- Delivery Fields (hidden by default) -->
-          <div id="delivery-fields" class="hidden">
-            <div class="form-group">
-              <div class="map-label-row">
-                <label for="delivery-map">Pin Your Location (Optional)</label>
-                <button type="button" id="btn-use-gps" class="btn-locate-me" title="Use current GPS location">
-                  📍 Use My Location
-                </button>
+            <!-- Pickup Fields -->
+            <div id="pickup-fields">
+              <div class="form-group">
+                <label>Store Location</label>
+                <div style="border-radius: 12px; overflow: hidden; margin-top: 8px; border: 1px solid var(--border);">
+                  <iframe width="100%" height="250" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"
+                    src="https://maps.google.com/maps?q=Aspacio%20Panciteria,%20Mabini%20St,%20Bangued,%20Abra&t=&z=16&ie=UTF8&iwloc=&output=embed">
+                  </iframe>
+                </div>
+                <p class="map-help-text" style="margin-top: 8px; text-align: center;">Aspacio Panciteria, Mabini St,
+                  Zone
+                  3, Bangued, Abra</p>
               </div>
-              <p class="map-help-text">Tap the map or drag the pin to your delivery spot, or enter your address below.</p>
+            </div>
 
-              <div id="delivery-map-container" class="delivery-map-wrapper">
-                <div id="delivery-map"></div>
-                <div id="map-pin-status" class="map-status-pill">
-                  📍 <span id="pin-coords-display">Tap map to drop a pin</span>
+            <!-- Delivery Fields (hidden by default) -->
+            <div id="delivery-fields" class="hidden">
+              <div class="form-group">
+                <div class="map-label-row">
+                  <label for="delivery-map">Pin Your Delivery Location <span class="required">*</span></label>
+                  <button type="button" id="btn-use-gps" class="btn-locate-me" title="Use current GPS location">
+                    &#x1F4CD; Use My Location
+                  </button>
+                </div>
+                <p class="map-help-text">Required &#8212; tap the map, drag the pin, or use GPS to mark your exact
+                  delivery spot.</p>
+
+                <div id="delivery-map-container" class="delivery-map-wrapper">
+                  <div id="delivery-map"></div>
+                  <div id="map-pin-status" class="map-status-pill">
+                    📍 <span id="pin-coords-display">Tap map to drop a pin</span>
+                  </div>
+                </div>
+                <input type="hidden" id="delivery-lat" />
+                <input type="hidden" id="delivery-lng" />
+              </div>
+
+              <div class="form-group">
+                <label for="delivery-area">Delivery Area <span class="required">*</span></label>
+                <select id="delivery-area">
+                  <option value="">Select your area (Loading...)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="delivery-address">Street Address / Landmark <span class="required">*</span></label>
+                <div style="position:relative;">
+                  <input type="text" id="delivery-address" placeholder="House #, Street, Barangay, or Landmark"
+                    autocomplete="off" />
+                  <ul id="address-suggestions" style="
+                  display:none;
+                  position:absolute;
+                  top:100%;
+                  left:0;
+                  right:0;
+                  z-index:9999;
+                  margin:4px 0 0;
+                  padding:0;
+                  list-style:none;
+                  background:#fff;
+                  border:1.5px solid var(--border);
+                  border-radius:var(--radius-sm);
+                  box-shadow:0 8px 24px rgba(0,0,0,.12);
+                  max-height:220px;
+                  overflow-y:auto;
+                "></ul>
                 </div>
               </div>
-              <input type="hidden" id="delivery-lat" />
-              <input type="hidden" id="delivery-lng" />
-            </div>
 
-            <div class="form-group">
-              <label for="delivery-area">Delivery Area <span class="required">*</span></label>
-              <select id="delivery-area">
-                <option value="">Select your area (Loading...)</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="delivery-address">Street Address / Landmark <span class="required">*</span></label>
-              <input type="text" id="delivery-address" placeholder="House #, Street, Barangay, or Landmark" />
-            </div>
-            <div class="form-group">
-              <label for="delivery-notes">Delivery Notes <span
-                  style="font-weight:500;color:var(--text-soft)">(optional)</span></label>
-              <textarea id="delivery-notes"
-                placeholder="Gate code, drop-off instructions, or any special request…"></textarea>
+              <div class="form-group">
+                <label for="delivery-notes">Delivery Notes <span
+                    style="font-weight:500;color:var(--text-soft)">(optional)</span></label>
+                <textarea id="delivery-notes"
+                  placeholder="Gate code, drop-off instructions, or any special request…"></textarea>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ── Date & Time ── -->
-      <div class="card">
-        <div class="card-header">
-          <div class="step-num">4</div>
-          <div>
-            <h2>When?</h2>
-            <div class="card-header-sub">Pick your preferred date &amp; time</div>
+        <!-- ── Date & Time ── -->
+        <div class="card">
+          <div class="card-header">
+            <div class="step-num">3</div>
+            <div>
+              <h2>When?</h2>
+              <div class="card-header-sub" id="when-card-sub">Pick your preferred date &amp; pick-up time</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="form-group" style="margin-bottom:16px;">
+              <div class="toggle-group">
+                <input type="radio" name="order-timing" id="timing-today" value="today" checked />
+                <label for="timing-today" id="label-timing-today">🕒 Order Now</label>
+                <input type="radio" name="order-timing" id="timing-advance" value="advance" />
+                <label for="timing-advance">📅 Advance Order</label>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="date-time-container">
+              <div class="form-group" style="margin-bottom:0" id="date-group">
+                <label for="order-date">Date <span class="required">*</span></label>
+                <input type="date" id="order-date" />
+              </div>
+              <div class="form-group" style="margin-bottom:0" id="time-group">
+                <label for="preferred-time" id="preferred-time-label">Pick-up Time <span class="required">*</span></label>
+                <input type="time" id="preferred-time" min="09:00" max="21:00" value="10:00" required />
+              </div>
+            </div>
+            <div id="order-date-hint" class="order-date-hint" style="margin-top:10px"></div>
+            <div class="schedule-info-box" style="margin-top:10px">
+              <strong>📌 Schedule: </strong>
+              <span style="font-size:13px"><strong>Mon–Thu:</strong> Advance orders only &nbsp;·&nbsp;
+                <strong>Fri–Sun:</strong> Today or advance</span>
+            </div>
           </div>
         </div>
-        <div class="card-body">
-          <div class="form-group" style="margin-bottom:16px;">
-            <div class="toggle-group">
-              <input type="radio" name="order-timing" id="timing-today" value="today" checked />
-              <label for="timing-today" id="label-timing-today">🕒 Order Now</label>
-              <input type="radio" name="order-timing" id="timing-advance" value="advance" />
-              <label for="timing-advance">📅 Advance Order</label>
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group" style="margin-bottom:0" id="date-group">
-              <label for="order-date">Date <span class="required">*</span></label>
-              <input type="date" id="order-date" />
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label for="preferred-time">Time <span class="required">*</span></label>
-              <input type="time" id="preferred-time" value="10:00" />
-            </div>
-          </div>
-          <div id="order-date-hint" class="order-date-hint" style="margin-top:10px"></div>
-          <div class="schedule-info-box" style="margin-top:10px">
-            <strong>📌 Schedule: </strong>
-            <span style="font-size:13px"><strong>Mon–Thu:</strong> Advance orders only &nbsp;·&nbsp;
-              <strong>Fri–Sun:</strong> Today or advance</span>
-          </div>
-        </div>
-      </div>
-        
+
         <button type="button" class="place-order-btn" style="margin-top:20px" onclick="window.nextWizardStep(3)">
-          Next: Payment ➔
+          Next: Checkout &#10132;
         </button>
       </div><!-- /wizard-step-2 -->
 
       <!-- WIZARD STEP 3: CHECKOUT -->
       <div id="wizard-step-3" class="wizard-step hidden">
         <div style="height:14px"></div>
-        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:16px" onclick="window.nextWizardStep(2)">
-          ← Back to Details
+        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:16px"
+          onclick="window.nextWizardStep(2)">
+          &#8592; Back to How &amp; When
         </button>
 
+        <!-- ── Customer Info ── -->
+        <div class="card" id="customer-details-card">
+          <div class="card-header">
+            <div class="step-num">4</div>
+            <div>
+              <h2>Your Details</h2>
+              <div class="card-header-sub">Name and mobile number</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="customer-name">Full Name <span class="required">*</span></label>
+              <input type="text" id="customer-name" placeholder="e.g. Maria Santos" autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label for="mobile-number">Mobile Number <span class="required">*</span></label>
+              <input type="tel" id="mobile-number" placeholder="09XX XXX XXXX" autocomplete="tel" inputmode="tel" />
+            </div>
+          </div>
+        </div>
+
         <!-- ── Payment Method ── -->
-      <div class="card">
-        <div class="card-header">
-          <div class="step-num">5</div>
-          <div>
-            <h2>Payment Method</h2>
-            <div class="card-header-sub">Choose how you want to pay</div>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="form-group" style="margin-bottom:0">
-            <div class="toggle-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <input type="radio" name="payment-method" id="pay-cod" value="COD" checked />
-              <label for="pay-cod" style="padding:10px;text-align:center;">💵 Cash / COD</label>
-              <input type="radio" name="payment-method" id="pay-gcash" value="GCash" />
-              <label for="pay-gcash" style="padding:10px;text-align:center;">📱 GCash</label>
+        <div class="card">
+          <div class="card-header">
+            <div class="step-num">5</div>
+            <div>
+              <h2>Payment Method</h2>
+              <div class="card-header-sub">Choose how you want to pay</div>
             </div>
           </div>
-          <div id="gcash-instructions" class="hidden" style="margin-top:16px; padding:16px; background:var(--green-50); border:1px solid var(--green-200); border-radius:12px; text-align:center;">
-            <p style="font-weight:700; color:var(--green-800); margin-bottom:4px;">Pay via GCash QR</p>
-            <p style="font-size:13px; color:var(--green-700); margin-bottom:12px; line-height:1.4;">
-              Scan the QR code below using your GCash app.<br/>You can pay upon pickup or when the rider arrives.
-            </p>
-            <div style="background:#fff; border:1px solid var(--green-300); border-radius:12px; margin: 0 auto; display:inline-block; padding:8px;">
-              <img src="gcash-qr.png" alt="GCash QR Code" style="width:160px; height:auto; display:block; border-radius:8px; cursor:zoom-in;" onclick="document.getElementById('image-modal-img').src=this.src; document.getElementById('image-modal').classList.remove('hidden');" />
+          <div class="card-body">
+            <div class="form-group" style="margin-bottom:0">
+              <div class="toggle-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <input type="radio" name="payment-method" id="pay-cod" value="COD" checked />
+                <label for="pay-cod" style="padding:10px;text-align:center;">💵 Cash / COD</label>
+                <input type="radio" name="payment-method" id="pay-gcash" value="GCash" />
+                <label for="pay-gcash" style="padding:10px;text-align:center;">📱 GCash</label>
+              </div>
+            </div>
+            <div id="gcash-instructions" class="hidden"
+              style="margin-top:16px; padding:16px; background:var(--green-50); border:1px solid var(--green-200); border-radius:12px; text-align:center;">
+              <p style="font-weight:700; color:var(--green-800); margin-bottom:4px;">Pay via GCash QR</p>
+              <p style="font-size:13px; color:var(--green-700); margin-bottom:12px; line-height:1.4;">
+                Scan the QR code below using your GCash app.<br />You can pay upon pickup or when the rider arrives.
+              </p>
+              <div
+                style="background:#fff; border:1px solid var(--green-300); border-radius:12px; margin: 0 auto; display:inline-block; padding:8px;">
+                <img src="gcash-qr.png" alt="GCash QR Code"
+                  style="width:160px; height:auto; display:block; border-radius:8px; cursor:zoom-in;"
+                  onclick="document.getElementById('image-modal-img').src=this.src; document.getElementById('image-modal').classList.remove('hidden');" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ── Order Summary ── -->
-      <div class="card hidden" id="order-summary">
-        <div class="card-header">
-          <div class="icon">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <polyline points="9 11 12 14 22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
+        <!-- ── Order Summary ── -->
+        <div class="card hidden" id="order-summary">
+          <div class="card-header">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <polyline points="9 11 12 14 22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+            </div>
+            <h2>Order Summary</h2>
           </div>
-          <h2>Order Summary</h2>
+          <div class="card-body">
+            <table class="summary-table">
+              <thead>
+                <tr>
+                  <td
+                    style="font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
+                    Item</td>
+                  <td
+                    style="text-align:center;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
+                    Qty</td>
+                  <td
+                    style="text-align:right;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
+                    Price</td>
+                  <td
+                    style="text-align:right;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
+                    Total</td>
+                </tr>
+              </thead>
+              <tbody id="summary-items"></tbody>
+              <tbody>
+                <tr>
+                  <td colspan="4">
+                    <hr class="summary-divider" />
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="3" style="font-weight:700;color:var(--text-mid)">Subtotal</td>
+                  <td id="summary-subtotal" style="text-align:right;font-weight:700">₱0</td>
+                </tr>
+                <tr id="summary-delivery-row" class="fee-row">
+                  <td colspan="3" style="color:var(--text-soft)">
+                    Delivery Fee
+                    <span id="summary-delivery-dist"
+                      style="font-size:11px;font-weight:500;color:var(--text-soft);margin-left:4px;display:none;"></span>
+                  </td>
+                  <td id="summary-delivery-fee" style="text-align:right;color:var(--text-soft)">&#8369;0</td>
+                </tr>
+                <tr class="total-row">
+                  <td colspan="3">Total</td>
+                  <td id="summary-total" style="text-align:right">₱0</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div class="card-body">
-          <table class="summary-table">
-            <thead>
-              <tr>
-                <td
-                  style="font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
-                  Item</td>
-                <td
-                  style="text-align:center;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
-                  Qty</td>
-                <td
-                  style="text-align:right;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
-                  Price</td>
-                <td
-                  style="text-align:right;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
-                  Total</td>
-              </tr>
-            </thead>
-            <tbody id="summary-items"></tbody>
-            <tbody>
-              <tr>
-                <td colspan="4">
-                  <hr class="summary-divider" />
-                </td>
-              </tr>
-              <tr>
-                <td colspan="3" style="font-weight:700;color:var(--text-mid)">Subtotal</td>
-                <td id="summary-subtotal" style="text-align:right;font-weight:700">₱0</td>
-              </tr>
-              <tr id="summary-delivery-row" class="fee-row">
-                <td colspan="3" style="color:var(--text-soft)">Delivery Fee</td>
-                <td id="summary-delivery-fee" style="text-align:right;color:var(--text-soft)">₱60</td>
-              </tr>
-              <tr class="total-row">
-                <td colspan="3">Total</td>
-                <td id="summary-total" style="text-align:right">₱0</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <!-- ── Place Order ── -->
-      <button class="place-order-btn" id="place-order-btn" type="button" style="margin-top:20px">
-        🍵 Place Order
-      </button>
+        <!-- ── Place Order ── -->
+        <button class="place-order-btn" id="place-order-btn" type="button" style="margin-top:20px">
+          🍵 Place Order
+        </button>
       </div><!-- /wizard-step-3 -->
 
       <!-- ── Footer ── -->
@@ -366,8 +399,13 @@
           We've received your order! We'll begin preparing your drinks shortly.
         </div>
 
-        <div style="text-align:center; font-size:13px; color:var(--text-soft); margin-top:-8px; margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:6px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div
+          style="text-align:center; font-size:13px; color:var(--text-soft); margin-top:-8px; margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
           <strong>Est. Prep Time:</strong> 25-30mins
         </div>
 
@@ -424,10 +462,6 @@
           <span class="detail-value" id="success-mobile">—</span>
         </div>
         <div class="detail-row">
-          <span class="detail-label">Facebook</span>
-          <span class="detail-value" id="success-fb">—</span>
-        </div>
-        <div class="detail-row">
           <span class="detail-label">Order Type</span>
           <span class="detail-value" id="success-type">—</span>
         </div>
@@ -436,7 +470,7 @@
           <span class="detail-value" id="success-location">—</span>
         </div>
         <div class="detail-row">
-          <span class="detail-label">Date & Time</span>
+          <span class="detail-label" id="success-date-label">Date & Pick-up Time</span>
           <span class="detail-value" id="success-date">—</span>
         </div>
         <div class="detail-row">
@@ -459,7 +493,7 @@
       </div>
 
       <div class="success-note">
-        📲 We'll message you on Facebook once your order is being prepared.
+        📲 We'll contact you via SMS or call once your order is being prepared.
         Thank you for ordering from Studio Midori! 💚
       </div>
 
@@ -472,7 +506,11 @@
     <div class="sticky-cart-content">
       <div class="sticky-cart-info">
         <span class="sticky-cart-count" id="sticky-cart-count">0 drinks</span>
-        <span class="sticky-cart-total" id="sticky-cart-total">₱0</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
+          <span class="sticky-cart-total" id="sticky-cart-total">&#8369;0</span>
+          <span id="sticky-cart-shipping" style="font-size:11px;font-weight:600;color:var(--green-600);display:none;">+
+            &#8369;0 shipping</span>
+        </div>
       </div>
       <button class="sticky-cart-btn" id="sticky-cart-btn" type="button">
         Review & Checkout ➔

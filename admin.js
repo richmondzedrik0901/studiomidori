@@ -460,10 +460,6 @@ function renderModal(order) {
       <span class="modal-info-value"><a href="tel:${order.mobile}" style="color:var(--green-600);text-decoration:none">${order.mobile}</a></span>
     </div>
     <div class="modal-info-row">
-      <span class="modal-info-label">Facebook</span>
-      <span class="modal-info-value">${order.fbName}</span>
-    </div>
-    <div class="modal-info-row">
       <span class="modal-info-label">Payment</span>
       <span class="modal-info-value" style="font-weight:700; color: ${order.paymentMethod === 'GCash' ? 'var(--green-700)' : 'inherit'}">
         ${order.paymentMethod === 'GCash' ? '📱 GCash' : '💵 Cash / COD'}
@@ -481,7 +477,7 @@ function renderModal(order) {
       <span class="modal-info-value">${formatDate(order.orderDate)}</span>
     </div>
     <div class="modal-info-row">
-      <span class="modal-info-label">Time</span>
+      <span class="modal-info-label">${order.deliveryType === 'delivery' ? 'Delivery Time' : 'Pick-up Time'}</span>
       <span class="modal-info-value">${formatTime(order.preferredTime)}</span>
     </div>
     <div class="modal-info-row">

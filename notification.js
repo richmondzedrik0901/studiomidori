@@ -69,7 +69,7 @@ FB Name: ${order.fbName}
 
 Type: ${order.deliveryType === 'pickup' ? '🏪 Pickup' : '🛵 Delivery'}${deliveryInfo}
 Date: ${order.orderDate}
-Time: ${order.preferredTime}
+${order.deliveryType === 'delivery' ? 'Delivery Time' : 'Pick-up Time'}: ${order.preferredTime}
 
 Items:
 ${itemLines}

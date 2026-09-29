@@ -287,6 +287,36 @@ select {
   padding-right: 36px;
 }
 
+input[type="date"],
+input[type="time"] {
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.85;
+  background-color: rgba(79, 110, 37, 0.08);
+}
+
+@keyframes errorPulse {
+  0% { box-shadow: 0 0 0 0 rgba(224, 90, 90, 0.4); border-color: #e05a5a; }
+  50% { box-shadow: 0 0 0 4px rgba(224, 90, 90, 0.25); border-color: #e05a5a; }
+  100% { box-shadow: 0 0 0 0 rgba(224, 90, 90, 0); border-color: var(--border); }
+}
+
+.error-pulse {
+  animation: errorPulse 0.6s ease-in-out 2;
+  border-color: #e05a5a !important;
+}
+
 /* ── Radio/Toggle Pills ── */
 .toggle-group {
   display: flex;
@@ -3088,4 +3118,33 @@ select {
 
 .chat-input-row button:hover {
   background: var(--green-700);
+}
+
+/* ══════════════════════════════════════════
+   TIME PICKER (WITH CLOCK)
+   ══════════════════════════════════════════ */
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  font-size: 18px;
+  filter: invert(36%) sepia(34%) saturate(836%) hue-rotate(44deg) brightness(94%) contrast(92%);
+  transition: transform 0.18s ease;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.18);
+}
+
+input[type="time"].error-pulse {
+  animation: timeInputShake 0.4s ease-in-out, timeInputGlow 1.2s ease-out;
+}
+
+@keyframes timeInputShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+@keyframes timeInputGlow {
+  0% { border-color: #e05a5a; box-shadow: 0 0 0 4px rgba(224, 90, 90, 0.28); }
+  100% { border-color: var(--border); box-shadow: none; }
 }
