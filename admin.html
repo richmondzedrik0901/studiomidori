@@ -170,23 +170,6 @@
       <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Store Management</h1>
     </div>
 
-    <!-- Delivery Locations -->
-    <div class="admin-card">
-      <div class="admin-card-header">
-        <div>
-          <div class="admin-card-title">&#x1F69A; Delivery Locations &amp; Fees</div>
-          <div class="admin-card-subtitle">Set available shipping areas and fees (fee 0 = Free Delivery)</div>
-        </div>
-      </div>
-      <div class="admin-addons-list" id="admin-delivery-list">
-        <!-- Rendered by admin.js -->
-      </div>
-      <form class="admin-addon-add-form" onsubmit="addDeliveryLocation(event)">
-        <input type="text" class="matcha-add-input" id="new-delivery-name" placeholder="Location Name (e.g. Bangued Proper)" required />
-        <input type="number" class="matcha-add-input" id="new-delivery-fee" placeholder="Fee &#8369; (0 = Free)" min="0" required />
-        <button type="submit" class="admin-primary-btn">+ Add Location</button>
-      </form>
-    </div>
 
     <!-- Order Availability -->
     <div class="admin-card">
@@ -202,6 +185,14 @@
           <span style="line-height:1.5;">
             <strong style="font-size:14px;display:block;">Enable "Order Now" for today</strong>
             <span style="font-size:12px;color:var(--text-soft);">Overrides the Mon-Thu restriction. Customers can order for today.</span>
+          </span>
+        </label>
+        
+        <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--green-50,#f0fdf4);border-radius:var(--radius-sm);border:1px solid var(--green-200,#bbf7d0);cursor:pointer;margin-top:12px;">
+          <input type="checkbox" id="admin-allow-advance-delivery" style="width:20px;height:20px;accent-color:var(--green-600);flex-shrink:0;margin-top:2px;" onchange="toggleAllowAdvanceDelivery(event)" />
+          <span style="line-height:1.5;">
+            <strong style="font-size:14px;display:block;">Allow Delivery for Advance Orders</strong>
+            <span style="font-size:12px;color:var(--text-soft);">When enabled, customers can select Delivery for advance orders. Otherwise, advance orders are Pickup only.</span>
           </span>
         </label>
       </div>

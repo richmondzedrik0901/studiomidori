@@ -676,6 +676,10 @@ function startListeningMenu() {
     if (forceOrderNow) {
       forceOrderNow.checked = !!settings.forceOrderNow;
     }
+    const allowAdvanceDelivery = document.getElementById('admin-allow-advance-delivery');
+    if (allowAdvanceDelivery) {
+      allowAdvanceDelivery.checked = !!settings.allowAdvanceDelivery;
+    }
     adminBlackoutDates = settings.blackoutDates || [];
     window.adminBlackoutDates = adminBlackoutDates;
     if (window.renderBlackoutDates) window.renderBlackoutDates();
@@ -686,6 +690,16 @@ function startListeningMenu() {
 window.toggleForceOrderNow = async function(e) {
   try {
     await update(ref(db, 'menu/settings'), { forceOrderNow: e.target.checked });
+    showToast('Updated store settings ✓');
+  } catch (err) {
+    console.error('Failed to update settings:', err);
+    showToast('Failed to update settings.');
+  }
+};
+
+window.toggleAllowAdvanceDelivery = async function(e) {
+  try {
+    await update(ref(db, 'menu/settings'), { allowAdvanceDelivery: e.target.checked });
     showToast('Updated store settings ✓');
   } catch (err) {
     console.error('Failed to update settings:', err);
@@ -1287,61 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === e.currentTarget) closeDrinkModal();
   });
 });
-// ── Delivery Locations Manager ─────────────────────────────
-let deliveryLocations = {};
 
-function listenToDeliveryLocations() {
-  const refDel = ref(db, 'config/deliveryLocations');
-  onValue(refDel, (snapshot) => {
-    deliveryLocations = snapshot.val() || {};
-    renderDeliveryLocations();
-  });
-}
-
-function renderDeliveryLocations() {
-  const container = document.getElementById('admin-delivery-list');
-  if (!container) return;
-  container.innerHTML = '';
-  const entries = Object.entries(deliveryLocations);
-  if (entries.length === 0) {
-    container.innerHTML = '<div style="padding:12px;color:var(--text-soft);font-size:13px;text-align:center">No locations set. Set fee to 0 for free delivery.</div>';
-    return;
-  }
-  entries.forEach(([id, loc]) => {
-    container.innerHTML += `
-    <div class="admin-addon-item">
-      <div class="admin-addon-info">
-        <div class="admin-addon-name">${loc.name}</div>
-        <div class="admin-addon-price">${loc.fee === 0 ? 'Free Delivery' : '₱' + loc.fee}</div>
-      </div>
-      <div class="admin-product-actions">
-        <button class="admin-action-btn delete" onclick="deleteDeliveryLocation('${id}')">Delete</button>
-      </div>
-    </div>`;
-  });
-}
-
-window.addDeliveryLocation = async function(e) {
-  e.preventDefault();
-  const nameInput = document.getElementById('new-delivery-name');
-  const feeInput = document.getElementById('new-delivery-fee');
-  if (!nameInput.value) return;
-  const newRef = push(ref(db, 'config/deliveryLocations'));
-  await set(newRef, {
-    name: nameInput.value.trim(),
-    fee: Number(feeInput.value)
-  });
-  nameInput.value = '';
-  feeInput.value = '';
-};
-
-window.deleteDeliveryLocation = async function(id) {
-  if(confirm('Delete this delivery location?')) {
-    await remove(ref(db, `config/deliveryLocations/${id}`));
-  }
-};
-
-listenToDeliveryLocations();
 
 window.generateReports = function() {
   const startInput = document.getElementById('report-date-start');

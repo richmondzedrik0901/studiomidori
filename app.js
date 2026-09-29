@@ -1008,6 +1008,9 @@ function setupDateTimeRules() {
     }
 
     applyTimeMin();
+    if (typeof enforceDeliveryRule === 'function') {
+      enforceDeliveryRule();
+    }
   }
 
   // Handle radio toggle
@@ -1041,6 +1044,34 @@ function setupDateTimeRules() {
     }
   }
 
+  function enforceDeliveryRule() {
+    const isAdvance = $('timing-advance')?.checked;
+    const allowAdvanceDelivery = !!storeSettings.allowAdvanceDelivery;
+    const deliveryRadio = $('type-delivery');
+    const pickupRadio = $('type-pickup');
+    const labelDelivery = $('label-type-delivery');
+
+    if (isAdvance && !allowAdvanceDelivery) {
+      if (deliveryRadio) deliveryRadio.disabled = true;
+      if (labelDelivery) {
+        labelDelivery.style.opacity = '0.5';
+        labelDelivery.style.cursor = 'not-allowed';
+        labelDelivery.title = 'Delivery is not available for advance orders.';
+      }
+      if (deliveryRadio && deliveryRadio.checked && pickupRadio) {
+        pickupRadio.checked = true;
+        pickupRadio.dispatchEvent(new Event('change'));
+      }
+    } else {
+      if (deliveryRadio) deliveryRadio.disabled = false;
+      if (labelDelivery) {
+        labelDelivery.style.opacity = '1';
+        labelDelivery.style.cursor = 'pointer';
+        labelDelivery.title = '';
+      }
+    }
+  }
+
   window.reapplyDateMin = () => {
     const restricted = todayIsWeekday() || isBlackoutDate(getTodayDateString());
     if (restricted) {
@@ -1066,6 +1097,7 @@ function setupDateTimeRules() {
       }
     }
     applyDateMin();
+    enforceDeliveryRule();
   };
 
   applyDateMin();
@@ -1723,44 +1755,6 @@ function showToast(message) {
 
 // ── Init ─────────────────────────────────────────────────────────────
 
-// ── Delivery Locations Config ────────────────────────────────────────────
-function listenToDeliveryFee() {
-  const refDel = ref(db, 'config/deliveryLocations');
-  onValue(refDel, (snapshot) => {
-    const data = snapshot.val() || {};
-    const select = $('delivery-area');
-    if (!select) return;
-
-    // Remember current selection if any
-    const currentVal = select.value;
-
-    let html = '<option value="">Select your area...</option>';
-    let foundCurrent = false;
-
-    Object.entries(data).forEach(([id, loc]) => {
-      const feeText = loc.fee === 0 ? 'Free Delivery' : `+₱${loc.fee}`;
-      html += `<option value="${loc.fee}">${loc.name} (${feeText})</option>`;
-      if (currentVal === loc.fee.toString()) foundCurrent = true;
-    });
-
-    select.innerHTML = html;
-
-    if (foundCurrent) {
-      select.value = currentVal;
-    } else {
-      DELIVERY_FEE = 0; // Default until selected
-    }
-    updateSummary();
-  }, (err) => console.warn('Could not load delivery locations:', err));
-
-  const select = $('delivery-area');
-  if (select) {
-    select.addEventListener('change', (e) => {
-      DELIVERY_FEE = Number(e.target.value) || 0;
-      updateSummary();
-    });
-  }
-}
 
 // ── Form State Persistence ───────────────────────────────────────────
 const FORM_FIELDS = [
@@ -1818,7 +1812,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Apply date/time scheduling rules (weekdays = advance only, Fri–Sun = same-day allowed)
   setupDateTimeRules();
-  listenToDeliveryFee();
+
 
   // Payment Method toggles
   document.querySelectorAll('input[name="payment-method"]').forEach(radio => {

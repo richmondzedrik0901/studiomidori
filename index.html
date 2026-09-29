@@ -96,10 +96,47 @@
           &#8592; Back to Menu
         </button>
 
-        <!-- ── Pickup or Delivery ── -->
+        <!-- ── Date & Time ── -->
         <div class="card">
           <div class="card-header">
             <div class="step-num">2</div>
+            <div>
+              <h2>When?</h2>
+              <div class="card-header-sub" id="when-card-sub">Pick your preferred date &amp; pick-up time</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="form-group" style="margin-bottom:16px;">
+              <div class="toggle-group">
+                <input type="radio" name="order-timing" id="timing-today" value="today" checked />
+                <label for="timing-today" id="label-timing-today">🕒 Order Now</label>
+                <input type="radio" name="order-timing" id="timing-advance" value="advance" />
+                <label for="timing-advance">📅 Advance Order</label>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="date-time-container">
+              <div class="form-group" style="margin-bottom:0" id="date-group">
+                <label for="order-date">Date <span class="required">*</span></label>
+                <input type="date" id="order-date" />
+              </div>
+              <div class="form-group" style="margin-bottom:0" id="time-group">
+                <label for="preferred-time" id="preferred-time-label">Pick-up Time <span class="required">*</span></label>
+                <input type="time" id="preferred-time" min="09:00" max="21:00" value="10:00" required />
+              </div>
+            </div>
+            <div id="order-date-hint" class="order-date-hint" style="margin-top:10px"></div>
+            <div class="schedule-info-box" style="margin-top:10px">
+              <strong>📌 Schedule: </strong>
+              <span style="font-size:13px"><strong>Mon–Thu:</strong> Advance orders only &nbsp;·&nbsp;
+                <strong>Fri–Sun:</strong> Today or advance</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Pickup or Delivery ── -->
+        <div class="card">
+          <div class="card-header">
+            <div class="step-num">3</div>
             <div>
               <h2>Order Type</h2>
               <div class="card-header-sub">Store pickup or home delivery</div>
@@ -111,7 +148,7 @@
                 <input type="radio" name="delivery-type" id="type-pickup" value="pickup" checked />
                 <label for="type-pickup">🏪 Pickup</label>
                 <input type="radio" name="delivery-type" id="type-delivery" value="delivery" />
-                <label for="type-delivery">🛵 Delivery</label>
+                <label for="type-delivery" id="label-type-delivery">🛵 Delivery</label>
               </div>
             </div>
 
@@ -152,12 +189,6 @@
                 <input type="hidden" id="delivery-lng" />
               </div>
 
-              <div class="form-group">
-                <label for="delivery-area">Delivery Area <span class="required">*</span></label>
-                <select id="delivery-area">
-                  <option value="">Select your area (Loading...)</option>
-                </select>
-              </div>
 
               <div class="form-group">
                 <label for="delivery-address">Street Address / Landmark <span class="required">*</span></label>
@@ -190,43 +221,6 @@
                 <textarea id="delivery-notes"
                   placeholder="Gate code, drop-off instructions, or any special request…"></textarea>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Date & Time ── -->
-        <div class="card">
-          <div class="card-header">
-            <div class="step-num">3</div>
-            <div>
-              <h2>When?</h2>
-              <div class="card-header-sub" id="when-card-sub">Pick your preferred date &amp; pick-up time</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="form-group" style="margin-bottom:16px;">
-              <div class="toggle-group">
-                <input type="radio" name="order-timing" id="timing-today" value="today" checked />
-                <label for="timing-today" id="label-timing-today">🕒 Order Now</label>
-                <input type="radio" name="order-timing" id="timing-advance" value="advance" />
-                <label for="timing-advance">📅 Advance Order</label>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="date-time-container">
-              <div class="form-group" style="margin-bottom:0" id="date-group">
-                <label for="order-date">Date <span class="required">*</span></label>
-                <input type="date" id="order-date" />
-              </div>
-              <div class="form-group" style="margin-bottom:0" id="time-group">
-                <label for="preferred-time" id="preferred-time-label">Pick-up Time <span class="required">*</span></label>
-                <input type="time" id="preferred-time" min="09:00" max="21:00" value="10:00" required />
-              </div>
-            </div>
-            <div id="order-date-hint" class="order-date-hint" style="margin-top:10px"></div>
-            <div class="schedule-info-box" style="margin-top:10px">
-              <strong>📌 Schedule: </strong>
-              <span style="font-size:13px"><strong>Mon–Thu:</strong> Advance orders only &nbsp;·&nbsp;
-                <strong>Fri–Sun:</strong> Today or advance</span>
             </div>
           </div>
         </div>
