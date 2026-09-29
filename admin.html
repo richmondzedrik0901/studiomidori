@@ -59,6 +59,9 @@
     <button class="admin-nav-btn" id="nav-btn-menu" onclick="switchAdminSection('menu')">
       🍵 Menu & Matcha
     </button>
+    <button class="admin-nav-btn" id="nav-btn-reports" onclick="switchAdminSection('reports')">
+      📊 Reports
+    </button>
   </nav>
 
   <!-- ── Orders Section ── -->
@@ -169,6 +172,68 @@
       </form>
     </div>
 
+    <!-- 5. Store Settings -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <div class="admin-card-title">⚙️ Store Settings</div>
+          <div class="admin-card-subtitle">Manage store status and order settings</div>
+        </div>
+      </div>
+      <div class="admin-addons-list" style="padding: 16px;">
+        <div style="display:flex;align-items:center;gap:10px">
+            <input type="checkbox" id="admin-force-order-now" style="width:18px;height:18px;accent-color:var(--green-600)" onchange="toggleForceOrderNow(event)" />
+            <label for="admin-force-order-now" style="margin:0;font-size:14px;cursor:pointer">
+              <strong>Enable "Order Now" for today</strong> (Overrides weekday restriction)
+            </label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Reports Section ── -->
+  <div class="orders-container hidden" id="reports-section">
+    <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Sales Reports</h1>
+      
+      <!-- Date Filter -->
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label for="report-date-start" style="margin:0;font-size:13px;font-weight:700">From:</label>
+        <input type="date" id="report-date-start" style="padding:4px 8px;font-size:13px;width:auto;" onchange="generateReports()" />
+        <label for="report-date-end" style="margin:0;font-size:13px;font-weight:700">To:</label>
+        <input type="date" id="report-date-end" style="padding:4px 8px;font-size:13px;width:auto;" onchange="generateReports()" />
+      </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;margin-bottom:20px;">
+      <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:var(--text-soft);font-weight:700;text-transform:uppercase;margin-bottom:4px">Total Sales</div>
+        <div id="report-total-sales" style="font-size:24px;font-weight:900;color:var(--green-700)">₱0</div>
+      </div>
+      <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:var(--text-soft);font-weight:700;text-transform:uppercase;margin-bottom:4px">Total Orders</div>
+        <div id="report-total-orders" style="font-size:24px;font-weight:900;color:var(--green-700)">0</div>
+      </div>
+      <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
+        <div style="font-size:12px;color:var(--text-soft);font-weight:700;text-transform:uppercase;margin-bottom:4px">Items Sold</div>
+        <div id="report-total-items" style="font-size:24px;font-weight:900;color:var(--green-700)">0</div>
+      </div>
+    </div>
+
+    <!-- Top Selling Items -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <div class="admin-card-title">🏆 Top Selling Drinks</div>
+        </div>
+      </div>
+      <div class="admin-addons-list" id="report-top-items" style="padding:16px;">
+        <!-- Rendered by admin.js -->
+        <div class="empty-state"><p>No data for selected date range.</p></div>
+      </div>
+    </div>
   </div>
 
   <!-- ══════════════════════════════════════════

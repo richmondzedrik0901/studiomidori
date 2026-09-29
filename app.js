@@ -15,6 +15,7 @@ let DELIVERY_FEE = 60;
 let products = [];        // loaded from Firebase only
 let matchaChoices = [];   // loaded from Firebase only
 let addOns = {};          // loaded from Firebase only
+let storeSettings = {};   // loaded from Firebase only
 let selectedCategory = 'all'; // 'all', 'matcha', 'hojicha'
 
 const state = {
@@ -63,6 +64,13 @@ function listenToMenu() {
     buildProductList();
     updateSummary();
   }, (err) => console.warn('Could not load add-ons:', err));
+
+  // 4. Settings
+  const settingsRef = ref(db, 'menu/settings');
+  onValue(settingsRef, (snapshot) => {
+    storeSettings = snapshot.exists() ? snapshot.val() : {};
+    if (window.reapplyDateMin) window.reapplyDateMin();
+  }, (err) => console.warn('Could not load settings:', err));
 }
 
 // ── Category Tab Switching ───────────────────────────────────────────
@@ -709,9 +717,11 @@ function isWeekday(dateStr) {
 }
 
 /**
- * Returns true if today is a weekday (Mon–Thu) from the user's perspective.
+ * Returns true if today is a weekday (Mon–Thu) from the user's perspective, 
+ * unless the admin forced "Order Now" to be enabled.
  */
 function todayIsWeekday() {
+  if (storeSettings.forceOrderNow) return false;
   return isWeekday(getTodayDateString());
 }
 
@@ -719,6 +729,10 @@ function setupDateTimeRules() {
   const dateInput = $('order-date');
   const timeInput = $('preferred-time');
   const hintEl = $('order-date-hint');
+  const dateGroup = $('date-group');
+  const timeContainer = dateGroup ? dateGroup.parentElement : null;
+  const timingRadios = document.querySelectorAll('input[name="order-timing"]');
+
   if (!dateInput) return;
 
   function applyTimeMin() {
@@ -729,13 +743,11 @@ function setupDateTimeRules() {
     if (dateInput.value === today) {
       // Minimum prep time buffer for today's orders
       timeInput.min = minPrepTime;
-      // Also update the value if it's empty OR if they let the time slip into the past while the page was open
       if (!timeInput.value || timeInput.value < minPrepTime) {
         timeInput.value = minPrepTime;
       }
     } else {
       timeInput.removeAttribute('min');
-      // If picking an advance date and time is empty, prefill with 25 mins from now anyway
       if (!timeInput.value) {
         timeInput.value = minPrepTime;
       }
@@ -743,31 +755,100 @@ function setupDateTimeRules() {
   }
 
   function applyDateMin() {
-    const minDate = todayIsWeekday() ? getTomorrowDateString() : getTodayDateString();
-    dateInput.min = minDate;
-    if (!dateInput.value || dateInput.value < minDate) {
-      dateInput.value = minDate;
-    }
-
-    if (hintEl) {
-      if (todayIsWeekday()) {
-        hintEl.textContent = '📅 Weekday: advance orders only — please pick tomorrow or a later date.';
-        hintEl.className = 'order-date-hint hint-advance';
-      } else {
-        hintEl.textContent = '🎉 Weekend: you can order for today or in advance!';
+    const isTodayMode = $('timing-today')?.checked;
+    
+    if (isTodayMode) {
+      if (dateGroup) dateGroup.style.display = 'none';
+      if (timeContainer) timeContainer.style.gridTemplateColumns = '1fr';
+      
+      dateInput.value = getTodayDateString();
+      dateInput.min = getTodayDateString();
+      
+      if (hintEl) {
+        hintEl.textContent = '🕒 Ordering for today. Please allow 25-30 mins prep time.';
         hintEl.className = 'order-date-hint hint-weekend';
+      }
+    } else {
+      if (dateGroup) dateGroup.style.display = '';
+      if (timeContainer) timeContainer.style.gridTemplateColumns = '1fr 1fr';
+      
+      const tomorrow = getTomorrowDateString();
+      dateInput.min = tomorrow;
+      if (!dateInput.value || dateInput.value < tomorrow) {
+        dateInput.value = tomorrow;
+      }
+      
+      if (hintEl) {
+        hintEl.textContent = '📅 Advance order for tomorrow or a later date.';
+        hintEl.className = 'order-date-hint hint-advance';
       }
     }
 
     applyTimeMin();
   }
 
+  // Handle radio toggle
+  timingRadios.forEach(radio => {
+    radio.addEventListener('change', applyDateMin);
+  });
+
+  // Force Advance mode if today is weekday initially (and admin hasn't forced it)
+  if (todayIsWeekday()) {
+    if ($('timing-advance')) $('timing-advance').checked = true;
+    if ($('timing-today')) {
+       $('timing-today').disabled = true;
+       const labelToday = $('label-timing-today');
+       if (labelToday) {
+         labelToday.style.opacity = '0.5';
+         labelToday.style.cursor = 'not-allowed';
+         labelToday.title = 'Today is a weekday. Only advance orders are accepted.';
+       }
+    }
+  } else {
+    // If setting toggles back to normal, re-enable it
+    if ($('timing-today')) {
+       $('timing-today').disabled = false;
+       const labelToday = $('label-timing-today');
+       if (labelToday) {
+         labelToday.style.opacity = '1';
+         labelToday.style.cursor = 'pointer';
+         labelToday.title = '';
+       }
+    }
+  }
+
+  window.reapplyDateMin = () => {
+    // Re-evaluate if it's considered a weekday
+    if (todayIsWeekday()) {
+      if ($('timing-today') && !$('timing-today').disabled) {
+        if ($('timing-advance')) $('timing-advance').checked = true;
+        $('timing-today').disabled = true;
+        const labelToday = $('label-timing-today');
+        if (labelToday) {
+          labelToday.style.opacity = '0.5';
+          labelToday.style.cursor = 'not-allowed';
+          labelToday.title = 'Today is a weekday. Only advance orders are accepted.';
+        }
+      }
+    } else {
+      if ($('timing-today') && $('timing-today').disabled) {
+        $('timing-today').disabled = false;
+        const labelToday = $('label-timing-today');
+        if (labelToday) {
+          labelToday.style.opacity = '1';
+          labelToday.style.cursor = 'pointer';
+          labelToday.title = '';
+        }
+      }
+    }
+    applyDateMin();
+  };
+
   applyDateMin();
   dateInput.addEventListener('change', applyDateMin);
   timeInput?.addEventListener('change', applyTimeMin);
 
   // Real-time update: keep pushing the minimum time forward every 60 seconds
-  // so if they stay on the page for a long time, the time doesn't get left in the past.
   setInterval(applyTimeMin, 60000);
 }
 
@@ -796,7 +877,7 @@ function validateForm() {
     return false;
   }
 
-  if (isWeekday(today) && date < tomorrow) {
+  if (isWeekday(today) && !storeSettings.forceOrderNow && date < tomorrow) {
     showToast('⚠️ Weekday orders must be placed in advance (tomorrow or later).');
     $('order-date').focus();
     return false;

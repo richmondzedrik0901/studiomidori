@@ -201,8 +201,16 @@
           </div>
         </div>
         <div class="card-body">
+          <div class="form-group" style="margin-bottom:16px;">
+            <div class="toggle-group">
+              <input type="radio" name="order-timing" id="timing-today" value="today" checked />
+              <label for="timing-today" id="label-timing-today">🕒 Order Now</label>
+              <input type="radio" name="order-timing" id="timing-advance" value="advance" />
+              <label for="timing-advance">📅 Advance Order</label>
+            </div>
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group" style="margin-bottom:0">
+            <div class="form-group" style="margin-bottom:0" id="date-group">
               <label for="order-date">Date <span class="required">*</span></label>
               <input type="date" id="order-date" />
             </div>
@@ -217,8 +225,8 @@
             <span style="font-size:13px"><strong>Mon–Thu:</strong> Advance orders only &nbsp;·&nbsp;
               <strong>Fri–Sun:</strong> Today or advance</span>
           </div>
-          </div>
         </div>
+      </div>
         
         <button type="button" class="place-order-btn" style="margin-top:20px" onclick="window.nextWizardStep(3)">
           Next: Payment ➔

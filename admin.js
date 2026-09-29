@@ -83,19 +83,25 @@ let currentDrinkImageData   = '';    // Base64 or URL for modal preview
 window.switchAdminSection = function(section) {
   const ordersBtn = document.getElementById('nav-btn-orders');
   const menuBtn   = document.getElementById('nav-btn-menu');
+  const reportsBtn = document.getElementById('nav-btn-reports');
+  
   const ordersSec = document.getElementById('orders-section');
   const menuSec   = document.getElementById('menu-section');
+  const reportsSec = document.getElementById('reports-section');
+
+  [ordersBtn, menuBtn, reportsBtn].forEach(btn => btn?.classList.remove('active'));
+  [ordersSec, menuSec, reportsSec].forEach(sec => sec?.classList.add('hidden'));
 
   if (section === 'orders') {
     ordersBtn?.classList.add('active');
-    menuBtn?.classList.remove('active');
     ordersSec?.classList.remove('hidden');
-    menuSec?.classList.add('hidden');
+  } else if (section === 'reports') {
+    reportsBtn?.classList.add('active');
+    reportsSec?.classList.remove('hidden');
+    if (window.generateReports) window.generateReports();
   } else {
     menuBtn?.classList.add('active');
-    ordersBtn?.classList.remove('active');
     menuSec?.classList.remove('hidden');
-    ordersSec?.classList.add('hidden');
   }
 
   sessionStorage.setItem('midori_admin_section', section);
@@ -242,28 +248,58 @@ function renderOrders() {
     return;
   }
 
-  container.innerHTML = filtered.map(order => {
-    const statusClass  = (order.status || 'NEW').toLowerCase();
-    const itemSummary  = (order.items || []).map(i => `${i.name} ×${i.qty}`).join(', ');
-    const typeIcon     = order.deliveryType === 'pickup' ? '🏪' : '🛵';
-    const timestamp    = formatDateTime(order.timestamp);
+  // Group by date
+  const groups = {};
+  filtered.forEach(o => {
+    // prioritize user selected order date, fallback to timestamp
+    const d = o.orderDate || new Date(o.timestamp || Date.now()).toISOString().split('T')[0];
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(o);
+  });
 
-    return `
-      <div class="order-card" onclick="openOrder('${order._key}')" id="card-${order._key}">
-        <div class="order-card-header">
-          <div>
-            <div class="order-number">${order.orderNumber}</div>
-            <div class="order-meta">${order.name} · ${typeIcon} ${order.deliveryType} · ${timestamp}</div>
+  // Sort dates descending
+  const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+  let html = '';
+  sortedDates.forEach(dateStr => {
+    // parse without timezone shift
+    const [y, m, d] = dateStr.split('-');
+    const dateObj = new Date(y, m - 1, d);
+    
+    // Check if it's today
+    const isToday = dateStr === new Date().toISOString().split('T')[0];
+    let headerTitle = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    if (isToday) headerTitle = `Today (${headerTitle})`;
+    
+    html += `<div style="margin: 24px 0 12px; font-weight: 900; font-size: 16px; color: var(--green-900); border-bottom: 2px solid var(--green-200); padding-bottom: 6px; display:flex; align-items:center; gap:8px;">
+               <span style="font-size:20px">📅</span> <span>${headerTitle}</span>
+             </div>`;
+    
+    html += groups[dateStr].map(order => {
+      const statusClass  = (order.status || 'NEW').toLowerCase();
+      const itemSummary  = (order.items || []).map(i => `${i.name} ×${i.qty}`).join(', ');
+      const typeIcon     = order.deliveryType === 'pickup' ? '🏪' : '🛵';
+      const timestamp    = formatDateTime(order.timestamp);
+
+      return `
+        <div class="order-card" onclick="openOrder('${order._key}')" id="card-${order._key}">
+          <div class="order-card-header">
+            <div>
+              <div class="order-number">${order.orderNumber}</div>
+              <div class="order-meta">${order.name} · ${typeIcon} ${order.deliveryType} · ${timestamp}</div>
+            </div>
+            <span class="status-badge ${statusClass}">${STATUS_LABELS[order.status] || order.status}</span>
           </div>
-          <span class="status-badge ${statusClass}">${STATUS_LABELS[order.status] || order.status}</span>
+          <div class="order-card-body">
+            <div class="order-summary-line">${itemSummary}</div>
+            <div class="order-total-line">₱${(order.total || 0).toLocaleString()}</div>
+          </div>
         </div>
-        <div class="order-card-body">
-          <div class="order-summary-line">${itemSummary}</div>
-          <div class="order-total-line">₱${(order.total || 0).toLocaleString()}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  });
+
+  container.innerHTML = html;
 }
 
 window.setTab = function(tab) {
@@ -616,7 +652,28 @@ function startListeningMenu() {
     adminAddOns = snapshot.exists() ? snapshot.val() : {};
     renderAdminAddOns();
   });
+
+  // 4. Listen for Settings
+  const settingsRef = ref(db, 'menu/settings');
+  onValue(settingsRef, (snapshot) => {
+    const settings = snapshot.exists() ? snapshot.val() : {};
+    const forceOrderNow = document.getElementById('admin-force-order-now');
+    if (forceOrderNow) {
+      forceOrderNow.checked = !!settings.forceOrderNow;
+    }
+  });
 }
+
+// ── Settings Handlers ──
+window.toggleForceOrderNow = async function(e) {
+  try {
+    await update(ref(db, 'menu/settings'), { forceOrderNow: e.target.checked });
+    showToast('Updated store settings ✓');
+  } catch (err) {
+    console.error('Failed to update settings:', err);
+    showToast('Failed to update settings.');
+  }
+};
 
 // ── Matcha Choices Handlers ──
 function renderMatchaChoices() {
@@ -1216,3 +1273,81 @@ window.deleteDeliveryLocation = async function(id) {
 };
 
 listenToDeliveryLocations();
+
+window.generateReports = function() {
+  const startInput = document.getElementById('report-date-start');
+  const endInput = document.getElementById('report-date-end');
+  
+  if (!startInput.value) {
+    const d = new Date();
+    d.setDate(1);
+    startInput.value = d.toISOString().split('T')[0];
+  }
+  if (!endInput.value) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1); // allow inclusion of today correctly
+    endInput.value = tomorrow.toISOString().split('T')[0];
+  }
+  
+  const startStr = startInput.value;
+  const endStr = endInput.value;
+  
+  const reportOrders = allOrders.filter(o => {
+    if (o.status === 'CANCELLED') return false; 
+    const d = o.orderDate || new Date(o.timestamp || Date.now()).toISOString().split('T')[0];
+    return d >= startStr && d <= endStr;
+  });
+  
+  let totalSales = 0;
+  let totalOrdersCount = reportOrders.length;
+  let totalItemsCount = 0;
+  
+  const itemCounts = {};
+  
+  reportOrders.forEach(o => {
+    if (o.status === 'COMPLETED' || o.status === 'READY' || o.status === 'PREPARING' || o.status === 'NEW') {
+       totalSales += (o.total || 0);
+    }
+    
+    (o.items || []).forEach(item => {
+      totalItemsCount += item.qty || 1;
+      if (!itemCounts[item.name]) {
+        itemCounts[item.name] = { qty: 0, revenue: 0 };
+      }
+      itemCounts[item.name].qty += item.qty || 1;
+      itemCounts[item.name].revenue += ((item.unitPrice || item.price || 0) * (item.qty || 1));
+    });
+  });
+  
+  const tsEl = document.getElementById('report-total-sales');
+  if (tsEl) tsEl.textContent = `₱${totalSales.toLocaleString()}`;
+  const toEl = document.getElementById('report-total-orders');
+  if (toEl) toEl.textContent = totalOrdersCount;
+  const tiEl = document.getElementById('report-total-items');
+  if (tiEl) tiEl.textContent = totalItemsCount;
+  
+  const topItemsList = document.getElementById('report-top-items');
+  if (!topItemsList) return;
+  
+  if (Object.keys(itemCounts).length === 0) {
+    topItemsList.innerHTML = '<div class="empty-state"><p>No sales data for selected date range.</p></div>';
+    return;
+  }
+  
+  const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1].qty - a[1].qty);
+  
+  topItemsList.innerHTML = sortedItems.map(([name, data], idx) => {
+    return `
+      <div class="admin-addon-item" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--green-100);color:var(--green-700);display:grid;place-items:center;font-weight:900;font-size:12px">${idx + 1}</div>
+          <div class="admin-addon-name" style="margin:0">${name}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:900;color:var(--green-700);font-size:15px">${data.qty} sold</div>
+          <div style="font-size:12px;color:var(--text-soft)">₱${data.revenue.toLocaleString()} revenue</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+};
