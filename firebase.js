@@ -22,14 +22,14 @@ import { getDatabase } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase
 // ── PASTE YOUR CONFIG HERE ────────────────────────────────────────────
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDrjxrYApUFAybGSzxilieJAcZA4n3kgjQ",
-  authDomain: "studiomidori-abf73.firebaseapp.com",
-  projectId: "studiomidori-abf73",
-  storageBucket: "studiomidori-abf73.firebasestorage.app",
-  messagingSenderId: "778344119164",
-  appId: "1:778344119164:web:648fb1d4e9979ac1f902f9",
-  databaseURL: "https://studiomidori-abf73-default-rtdb.asia-southeast1.firebasedatabase.app",
-  measurementId: "G-KKP605V4P0"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 // ─────────────────────────────────────────────────────────────────────
 

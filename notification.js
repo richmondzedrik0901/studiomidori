@@ -19,7 +19,7 @@ const NotificationConfig = {
   //   Make.com:  https://hook.eu1.make.com/xxxxxxxxxxxx
   //   n8n:       https://your-n8n.app/webhook/xxxx
   //   Zapier:    https://hooks.zapier.com/hooks/catch/xxxx/xxxx/
-  webhookUrl: '',  // <-- FILL THIS IN
+  webhookUrl: import.meta.env.VITE_WEBHOOK_URL || '',  // <-- LOADED FROM .ENV
 
   // Set to true to log order details to the browser console (for testing)
   debugMode: true,

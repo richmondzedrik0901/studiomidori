@@ -5,17 +5,18 @@
 1. Go to **[console.firebase.google.com](https://console.firebase.google.com)**
 2. Click **Add project** → name it `studio-midori` → Continue → skip Analytics → **Create project**
 3. Click the **`</>`** (Web) icon → name it `studio-midori-web` → **Register app**
-4. Copy the `firebaseConfig` block shown — it looks like this:
-   ```js
-   const firebaseConfig = {
-     apiKey: "AIzaSy...",
-     authDomain: "studio-midori-xxxxx.firebaseapp.com",
-     databaseURL: "https://studio-midori-xxxxx-default-rtdb.firebaseio.com",
-     projectId: "studio-midori-xxxxx",
-     ...
-   };
+4. You will need these keys for Vercel Environment Variables. Do NOT paste them into the code directly.
+5. Create a `.env` file locally (this file is ignored by Git for security) and add:
+   ```env
+   VITE_FIREBASE_API_KEY=AIzaSy...
+   VITE_FIREBASE_AUTH_DOMAIN=studio-midori-xxxxx.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=studio-midori-xxxxx
+   VITE_FIREBASE_STORAGE_BUCKET=studio-midori-xxxxx.firebasestorage.app
+   VITE_FIREBASE_MESSAGING_SENDER_ID=...
+   VITE_FIREBASE_APP_ID=...
+   VITE_FIREBASE_DATABASE_URL=https://studio-midori-xxxxx-default-rtdb.firebaseio.com
+   VITE_FIREBASE_MEASUREMENT_ID=...
    ```
-5. Paste it into **`firebase.js`** (replacing the `YOUR_...` placeholders)
 
 6. In the Firebase sidebar: **Build → Realtime Database → Create database**
    - Choose a region (Asia Southeast is fine)
@@ -49,12 +50,12 @@ Deploying static sites on Vercel is super fast (takes ~15 seconds):
 3. Under *Import Git Repository*, find **`studio-midori`** and click **Import**.
 4. In the configuration screen:
    - **Project Name**: `studio-midori`
-   - **Framework Preset**: *Other*
+   - **Framework Preset**: *Vite*
    - **Root Directory**: `./` (default)
-   - **Build and Output Settings**: Leave everything default / empty.
+   - **Environment Variables**: Add all your `VITE_FIREBASE_...` keys here (and `VITE_WEBHOOK_URL` for notifications).
 5. Click **Deploy**.
 
-Vercel will build and launch your site in seconds with a live link like:
+Vercel will build your Vite app securely and launch your site in seconds with a live link like:
 `https://studio-midori.vercel.app` (or `https://studio-midori-xxxx.vercel.app`)
 
 ---
