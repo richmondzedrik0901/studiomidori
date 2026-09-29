@@ -77,41 +77,54 @@ let allOrders               = [];    // [{ _key, ...orderData }] cached locally
 let adminMenuProducts       = {};    // { [id]: productData }
 let adminMatchaChoices      = [];    // ['Classic', ...]
 let adminAddOns             = {};    // { [id]: addOnData }
+let adminBlackoutDates      = [];    // ['YYYY-MM-DD', ...]
 let currentDrinkImageData   = '';    // Base64 or URL for modal preview
 
-// ── Navigation Section Switcher ───────────────────────────────────────
+// -- Navigation Section Switcher -------------------------------------------
 window.switchAdminSection = function(section) {
-  const ordersBtn = document.getElementById('nav-btn-orders');
-  const menuBtn   = document.getElementById('nav-btn-menu');
-  const reportsBtn = document.getElementById('nav-btn-reports');
-  
-  const ordersSec = document.getElementById('orders-section');
-  const menuSec   = document.getElementById('menu-section');
-  const reportsSec = document.getElementById('reports-section');
+  ['orders', 'menu', 'store', 'reports'].forEach(id => {
+    const btn = document.getElementById('nav-btn-' + id);
+    const sec = document.getElementById(id + '-section');
+    if (btn) btn.classList.remove('active');
+    if (sec) sec.classList.add('hidden');
+  });
 
-  [ordersBtn, menuBtn, reportsBtn].forEach(btn => btn?.classList.remove('active'));
-  [ordersSec, menuSec, reportsSec].forEach(sec => sec?.classList.add('hidden'));
+  const activeBtn = document.getElementById('nav-btn-' + section);
+  const activeSec = document.getElementById(section + '-section');
+  if (activeBtn) activeBtn.classList.add('active');
+  if (activeSec) activeSec.classList.remove('hidden');
 
-  if (section === 'orders') {
-    ordersBtn?.classList.add('active');
-    ordersSec?.classList.remove('hidden');
-  } else if (section === 'reports') {
-    reportsBtn?.classList.add('active');
-    reportsSec?.classList.remove('hidden');
-    if (window.generateReports) window.generateReports();
-  } else {
-    menuBtn?.classList.add('active');
-    menuSec?.classList.remove('hidden');
-  }
+  if (section === 'reports' && window.generateReports) window.generateReports();
 
   sessionStorage.setItem('midori_admin_section', section);
+};
+
+window.switchMenuTab = function(tab) {
+  const panels = { drinks: 'menu-panel-drinks', custom: 'menu-panel-custom' };
+  const tabs   = { drinks: 'sub-tab-drinks',   custom: 'sub-tab-custom'   };
+
+  Object.keys(panels).forEach(key => {
+    const panel = document.getElementById(panels[key]);
+    const btn   = document.getElementById(tabs[key]);
+    if (panel) panel.style.display = key === tab ? '' : 'none';
+    if (btn) {
+      if (key === tab) {
+        btn.style.color = 'var(--green-700)';
+        btn.style.fontWeight = '800';
+        btn.style.borderBottomColor = 'var(--green-600)';
+      } else {
+        btn.style.color = 'var(--text-soft)';
+        btn.style.fontWeight = '700';
+        btn.style.borderBottomColor = 'transparent';
+      }
+    }
+  });
 };
 
 // Restore last active section on reload
 (function restoreAdminSection() {
   const saved = sessionStorage.getItem('midori_admin_section');
   if (saved && saved !== 'orders') {
-    // Defer until DOM is ready
     document.addEventListener('DOMContentLoaded', () => switchAdminSection(saved));
   }
 })();
@@ -190,6 +203,12 @@ function startListeningOrders() {
       if (currentFirebaseKey) {
         const updated = allOrders.find(o => o._key === currentFirebaseKey);
         if (updated) renderModal(updated);
+      }
+
+      // Refresh reports if that section is currently visible
+      const reportsSec = document.getElementById('reports-section');
+      if (reportsSec && !reportsSec.classList.contains('hidden') && window.generateReports) {
+        window.generateReports();
       }
     }, (error) => {
       console.error('Firebase orders read error:', error);
@@ -661,6 +680,9 @@ function startListeningMenu() {
     if (forceOrderNow) {
       forceOrderNow.checked = !!settings.forceOrderNow;
     }
+    adminBlackoutDates = settings.blackoutDates || [];
+    window.adminBlackoutDates = adminBlackoutDates;
+    if (window.renderBlackoutDates) window.renderBlackoutDates();
   });
 }
 
@@ -672,6 +694,57 @@ window.toggleForceOrderNow = async function(e) {
   } catch (err) {
     console.error('Failed to update settings:', err);
     showToast('Failed to update settings.');
+  }
+};
+
+window.renderBlackoutDates = function() {
+  const container = document.getElementById('blackout-dates-list');
+  if (!container) return;
+
+  if (!adminBlackoutDates || adminBlackoutDates.length === 0) {
+    container.innerHTML = '<span style="font-size:13px;color:var(--text-soft)">No blackout dates set.</span>';
+    return;
+  }
+
+  const sorted = [...adminBlackoutDates].sort();
+  container.innerHTML = sorted.map((dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const display = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    return `<div class="matcha-chip" style="background:#fef3e2;border-color:#f5c98a;color:#8a4d1a;"><span>&#128197; ${display}</span><button class="matcha-chip-del" onclick="removeBlackoutDate('${dateStr}')" style="color:#8a4d1a;" title="Remove">&times;</button></div>`;
+  }).join('');
+};
+
+window.addBlackoutDate = async function() {
+  const input = document.getElementById('new-blackout-date');
+  const val = input.value;
+  if (!val) return;
+
+  if (adminBlackoutDates.includes(val)) {
+    showToast('Date is already blacked out.');
+    return;
+  }
+
+  const updated = [...adminBlackoutDates, val];
+  try {
+    await update(ref(db, 'menu/settings'), { blackoutDates: updated });
+    input.value = '';
+    showToast('Added ' + val + ' to blackout dates! ✓');
+  } catch (err) {
+    console.error('Failed to add blackout date:', err);
+    showToast('Failed to save. Check connection.');
+  }
+};
+
+window.removeBlackoutDate = async function(dateStr) {
+  if (!confirm('Remove ' + dateStr + ' from blackout dates?')) return;
+
+  const updated = adminBlackoutDates.filter(function(d) { return d !== dateStr; });
+  try {
+    await update(ref(db, 'menu/settings'), { blackoutDates: updated });
+    showToast('Removed ' + dateStr + ' ✓');
+  } catch (err) {
+    console.error('Failed to remove blackout date:', err);
+    showToast('Failed to remove. Check connection.');
   }
 };
 
@@ -1277,23 +1350,23 @@ listenToDeliveryLocations();
 window.generateReports = function() {
   const startInput = document.getElementById('report-date-start');
   const endInput = document.getElementById('report-date-end');
+  if (!startInput || !endInput) return;
   
+  // Default: from the 1st of this month to today (inclusive)
   if (!startInput.value) {
     const d = new Date();
     d.setDate(1);
     startInput.value = d.toISOString().split('T')[0];
   }
   if (!endInput.value) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1); // allow inclusion of today correctly
-    endInput.value = tomorrow.toISOString().split('T')[0];
+    endInput.value = new Date().toISOString().split('T')[0];
   }
   
   const startStr = startInput.value;
   const endStr = endInput.value;
   
   const reportOrders = allOrders.filter(o => {
-    if (o.status === 'CANCELLED') return false; 
+    if (o.status !== 'COMPLETED') return false; 
     const d = o.orderDate || new Date(o.timestamp || Date.now()).toISOString().split('T')[0];
     return d >= startStr && d <= endStr;
   });
@@ -1305,9 +1378,7 @@ window.generateReports = function() {
   const itemCounts = {};
   
   reportOrders.forEach(o => {
-    if (o.status === 'COMPLETED' || o.status === 'READY' || o.status === 'PREPARING' || o.status === 'NEW') {
-       totalSales += (o.total || 0);
-    }
+    totalSales += (o.total || 0);
     
     (o.items || []).forEach(item => {
       totalItemsCount += item.qty || 1;

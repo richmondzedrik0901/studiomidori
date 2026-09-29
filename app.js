@@ -725,6 +725,10 @@ function todayIsWeekday() {
   return isWeekday(getTodayDateString());
 }
 
+function isBlackoutDate(dateStr) {
+  return !!(storeSettings && Array.isArray(storeSettings.blackoutDates) && storeSettings.blackoutDates.includes(dateStr));
+}
+
 function setupDateTimeRules() {
   const dateInput = $('order-date');
   const timeInput = $('preferred-time');
@@ -792,8 +796,10 @@ function setupDateTimeRules() {
     radio.addEventListener('change', applyDateMin);
   });
 
-  // Force Advance mode if today is weekday initially (and admin hasn't forced it)
-  if (todayIsWeekday()) {
+  const todayIsRestricted = todayIsWeekday() || isBlackoutDate(getTodayDateString());
+
+  // Force Advance mode if today is a weekday or a blackout date
+  if (todayIsRestricted) {
     if ($('timing-advance')) $('timing-advance').checked = true;
     if ($('timing-today')) {
        $('timing-today').disabled = true;
@@ -801,11 +807,10 @@ function setupDateTimeRules() {
        if (labelToday) {
          labelToday.style.opacity = '0.5';
          labelToday.style.cursor = 'not-allowed';
-         labelToday.title = 'Today is a weekday. Only advance orders are accepted.';
+         labelToday.title = isBlackoutDate(getTodayDateString()) ? 'We are closed today.' : 'Today is a weekday. Only advance orders are accepted.';
        }
     }
   } else {
-    // If setting toggles back to normal, re-enable it
     if ($('timing-today')) {
        $('timing-today').disabled = false;
        const labelToday = $('label-timing-today');
@@ -818,8 +823,8 @@ function setupDateTimeRules() {
   }
 
   window.reapplyDateMin = () => {
-    // Re-evaluate if it's considered a weekday
-    if (todayIsWeekday()) {
+    const restricted = todayIsWeekday() || isBlackoutDate(getTodayDateString());
+    if (restricted) {
       if ($('timing-today') && !$('timing-today').disabled) {
         if ($('timing-advance')) $('timing-advance').checked = true;
         $('timing-today').disabled = true;
@@ -827,7 +832,7 @@ function setupDateTimeRules() {
         if (labelToday) {
           labelToday.style.opacity = '0.5';
           labelToday.style.cursor = 'not-allowed';
-          labelToday.title = 'Today is a weekday. Only advance orders are accepted.';
+          labelToday.title = isBlackoutDate(getTodayDateString()) ? 'We are closed today.' : 'Today is a weekday. Only advance orders are accepted.';
         }
       }
     } else {
@@ -845,7 +850,13 @@ function setupDateTimeRules() {
   };
 
   applyDateMin();
-  dateInput.addEventListener('change', applyDateMin);
+  dateInput.addEventListener('change', () => {
+    if (isBlackoutDate(dateInput.value)) {
+      showToast('⚠️ We are closed on that date. Please choose another date.');
+      dateInput.value = '';
+    }
+    applyDateMin();
+  });
   timeInput?.addEventListener('change', applyTimeMin);
 
   // Real-time update: keep pushing the minimum time forward every 60 seconds
@@ -873,6 +884,12 @@ function validateForm() {
 
   if (date < today) {
     showToast('⚠️ Please choose today or a later date.');
+    $('order-date').focus();
+    return false;
+  }
+
+  if (isBlackoutDate(date)) {
+    showToast('⚠️ We are closed on that date. Please choose another date.');
     $('order-date').focus();
     return false;
   }

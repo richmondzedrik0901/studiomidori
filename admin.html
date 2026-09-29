@@ -13,16 +13,16 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍵</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F375;</text></svg>" />
 </head>
 <body>
 
   <!-- ── Admin Login Passcode Gate Overlay ── -->
   <div class="admin-auth-overlay" id="admin-auth-overlay">
     <div class="admin-auth-card">
-      <div class="auth-icon">🔒</div>
+      <div class="auth-icon">&#x1F512;</div>
       <h2>Studio Midori Admin</h2>
-      <p>Owner & store management access only. Please enter your admin passcode to proceed.</p>
+      <p>Owner &amp; store management access only. Please enter your admin passcode to proceed.</p>
       <form id="admin-auth-form" onsubmit="verifyAdminPasscode(event)">
         <div style="margin-bottom: 14px;">
           <input
@@ -35,7 +35,7 @@
           />
         </div>
         <button type="submit" class="btn-primary" style="width:100%; border-radius:var(--radius-full); padding:12px;">
-          Unlock Dashboard ➔
+          Unlock Dashboard &#x2794;
         </button>
       </form>
       <div id="auth-error-msg" class="auth-error hidden">Incorrect passcode. Please try again.</div>
@@ -47,119 +47,135 @@
     <div class="logo">Studio Midori</div>
     <div style="display:flex;align-items:center;gap:10px">
       <div class="admin-badge">Admin</div>
-      <button class="admin-logout-btn" onclick="logoutAdmin()" title="Lock Dashboard" aria-label="Lock Dashboard">🔒 Lock</button>
+      <button class="admin-logout-btn" onclick="logoutAdmin()" title="Lock Dashboard" aria-label="Lock Dashboard">&#x1F512; Lock</button>
     </div>
   </header>
 
   <!-- ── Admin Navigation ── -->
   <nav class="admin-nav">
     <button class="admin-nav-btn active" id="nav-btn-orders" onclick="switchAdminSection('orders')">
-      📋 Orders <span class="nav-count-badge" id="nav-orders-count">0</span>
+      &#x1F4CB; Orders <span class="nav-count-badge" id="nav-orders-count">0</span>
     </button>
     <button class="admin-nav-btn" id="nav-btn-menu" onclick="switchAdminSection('menu')">
-      🍵 Menu & Matcha
+      &#x1F375; Menu
+    </button>
+    <button class="admin-nav-btn" id="nav-btn-store" onclick="switchAdminSection('store')">
+      &#x1F3EA; Store
     </button>
     <button class="admin-nav-btn" id="nav-btn-reports" onclick="switchAdminSection('reports')">
-      📊 Reports
+      &#x1F4CA; Reports
     </button>
   </nav>
 
-  <!-- ── Orders Section ── -->
+  <!-- ══ ORDERS SECTION ══ -->
   <div class="orders-container" id="orders-section">
-
     <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Orders</h1>
-      <a href="index.html"
-         style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
-        🍵 Order Page ↗
+      <a href="index.html" style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
+        &#x1F375; Order Page &#x2197;
       </a>
     </div>
-
-    <!-- Tab Bar -->
     <div class="tab-bar" id="tab-bar" role="tablist" aria-label="Filter by status">
       <!-- Built by admin.js -->
     </div>
-
-    <!-- Orders List -->
     <div id="orders-list">
       <div class="empty-state">
-        <div class="empty-icon">🍵</div>
-        <p>Connecting to Firebase & loading orders...</p>
+        <div class="empty-icon">&#x1F375;</div>
+        <p>Connecting to Firebase &amp; loading orders...</p>
       </div>
     </div>
-
   </div>
 
-  <!-- ── Menu & Matcha Management Section ── -->
+  <!-- ══ MENU SECTION ══ -->
   <div class="orders-container hidden" id="menu-section">
-
     <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Menu & Customizations</h1>
-      <a href="index.html"
-         style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
-        🍵 View Live Site ↗
+      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Menu</h1>
+      <a href="index.html" style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
+        &#x1F375; View Live Site &#x2197;
       </a>
     </div>
 
-    <!-- 1. Matcha Choices Card -->
-    <div class="admin-card">
-      <div class="admin-card-header">
-        <div>
-          <div class="admin-card-title">🍃 Matcha Varieties</div>
-          <div class="admin-card-subtitle">Customization options customers can choose for their drinks</div>
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);">
+      <button id="sub-tab-drinks" onclick="switchMenuTab('drinks')"
+        style="padding:10px 20px;border:none;background:none;font-weight:800;font-size:14px;color:var(--green-700);border-bottom:3px solid var(--green-600);margin-bottom:-2px;cursor:pointer;font-family:inherit;">
+        &#x1F375; Drinks
+      </button>
+      <button id="sub-tab-custom" onclick="switchMenuTab('custom')"
+        style="padding:10px 20px;border:none;background:none;font-weight:700;font-size:14px;color:var(--text-soft);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:inherit;">
+        &#x2728; Customizations
+      </button>
+    </div>
+
+    <!-- Drinks sub-panel -->
+    <div id="menu-panel-drinks">
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div>
+            <div class="admin-card-title">&#x1F375; Drinks Menu</div>
+            <div class="admin-card-subtitle">Manage prices, categories, descriptions, and photos</div>
+          </div>
+          <button class="admin-primary-btn" onclick="openAddDrinkModal()">+ Add New Drink</button>
         </div>
-      </div>
-      <div class="matcha-chips" id="matcha-chips-list">
-        <!-- Rendered by admin.js -->
-      </div>
-      <div class="matcha-add-row">
-        <input type="text" class="matcha-add-input" id="new-matcha-input" placeholder="e.g. Uji Ceremonial, Okumidori..." />
-        <button class="admin-primary-btn" onclick="addMatchaChoice()">+ Add</button>
+        <div class="admin-products-list" id="admin-products-list">
+          <!-- Rendered by admin.js -->
+        </div>
       </div>
     </div>
 
-    <!-- 2. Drinks Menu Card -->
-    <div class="admin-card">
-      <div class="admin-card-header">
-        <div>
-          <div class="admin-card-title">🍵 Drinks Menu</div>
-          <div class="admin-card-subtitle">Manage prices, categories, descriptions, and drink photos</div>
+    <!-- Customizations sub-panel -->
+    <div id="menu-panel-custom" style="display:none;">
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div>
+            <div class="admin-card-title">&#x1F343; Matcha Varieties</div>
+            <div class="admin-card-subtitle">Options customers can choose for their drink</div>
+          </div>
         </div>
-        <button class="admin-primary-btn" onclick="openAddDrinkModal()">+ Add New Drink</button>
-      </div>
-      <div class="admin-products-list" id="admin-products-list">
-        <!-- Rendered by admin.js -->
-      </div>
-    </div>
-
-    <!-- 3. Add-ons Manager Card -->
-    <div class="admin-card">
-      <div class="admin-card-header">
-        <div>
-          <div class="admin-card-title">✨ Drink Add-ons & Modifiers</div>
-          <div class="admin-card-subtitle">Customizable additions for customer drinks (milks, shots, toppings)</div>
+        <div class="matcha-chips" id="matcha-chips-list">
+          <!-- Rendered by admin.js -->
+        </div>
+        <div class="matcha-add-row">
+          <input type="text" class="matcha-add-input" id="new-matcha-input" placeholder="e.g. Uji Ceremonial, Okumidori..." />
+          <button class="admin-primary-btn" onclick="addMatchaChoice()">+ Add</button>
         </div>
       </div>
-      <div class="admin-addons-list" id="admin-addons-list">
-        <!-- Rendered by admin.js -->
+
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <div>
+            <div class="admin-card-title">&#x2728; Drink Add-ons &amp; Modifiers</div>
+            <div class="admin-card-subtitle">Additions customers can add to drinks (milks, shots, toppings)</div>
+          </div>
+        </div>
+        <div class="admin-addons-list" id="admin-addons-list">
+          <!-- Rendered by admin.js -->
+        </div>
+        <form class="admin-addon-add-form" onsubmit="addAddOn(event)">
+          <input type="text" class="matcha-add-input" id="new-addon-name" placeholder="Add-on name (e.g. Extra Matcha)" required />
+          <input type="number" class="matcha-add-input" id="new-addon-price" placeholder="Price &#8369; (e.g. 25)" min="0" required />
+          <select class="matcha-add-input" id="new-addon-type" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-weight:600">
+            <option value="checkbox">Standard (Checkbox)</option>
+            <option value="quantity">Per Gram / Quantity (+/- stepper)</option>
+          </select>
+          <button type="submit" class="admin-primary-btn">+ Add Add-on</button>
+        </form>
       </div>
-      <form class="admin-addon-add-form" onsubmit="addAddOn(event)">
-        <input type="text" class="matcha-add-input" id="new-addon-name" placeholder="Add-on name (e.g. Extra Matcha)" required />
-        <input type="number" class="matcha-add-input" id="new-addon-price" placeholder="Price ₱ (e.g. 25)" min="0" required />
-        <select class="matcha-add-input" id="new-addon-type" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-weight:600">
-          <option value="checkbox">Standard (Checkbox)</option>
-          <option value="quantity">Per Gram / Quantity (+/- stepper)</option>
-        </select>
-        <button type="submit" class="admin-primary-btn">+ Add Add-on</button>
-      </form>
+    </div>
+  </div>
+
+  <!-- ══ STORE SECTION ══ -->
+  <div class="orders-container hidden" id="store-section">
+    <div style="margin-bottom:16px;">
+      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Store Management</h1>
     </div>
 
-    <!-- 4. Delivery Locations Manager -->
+    <!-- Delivery Locations -->
     <div class="admin-card">
       <div class="admin-card-header">
         <div>
-          <div class="admin-card-title">🚚 Delivery Locations & Fees</div>
-          <div class="admin-card-subtitle">Set available shipping locations and their fees (Set fee to 0 for Free Delivery)</div>
+          <div class="admin-card-title">&#x1F69A; Delivery Locations &amp; Fees</div>
+          <div class="admin-card-subtitle">Set available shipping areas and fees (fee 0 = Free Delivery)</div>
         </div>
       </div>
       <div class="admin-addons-list" id="admin-delivery-list">
@@ -167,38 +183,55 @@
       </div>
       <form class="admin-addon-add-form" onsubmit="addDeliveryLocation(event)">
         <input type="text" class="matcha-add-input" id="new-delivery-name" placeholder="Location Name (e.g. Bangued Proper)" required />
-        <input type="number" class="matcha-add-input" id="new-delivery-fee" placeholder="Fee ₱ (0 = Free)" min="0" required />
+        <input type="number" class="matcha-add-input" id="new-delivery-fee" placeholder="Fee &#8369; (0 = Free)" min="0" required />
         <button type="submit" class="admin-primary-btn">+ Add Location</button>
       </form>
     </div>
 
-    <!-- 5. Store Settings -->
+    <!-- Order Availability -->
     <div class="admin-card">
       <div class="admin-card-header">
         <div>
-          <div class="admin-card-title">⚙️ Store Settings</div>
-          <div class="admin-card-subtitle">Manage store status and order settings</div>
+          <div class="admin-card-title">&#x1F551; Order Availability</div>
+          <div class="admin-card-subtitle">Control when customers can place same-day orders</div>
         </div>
       </div>
-      <div class="admin-addons-list" style="padding: 16px;">
-        <div style="display:flex;align-items:center;gap:10px">
-            <input type="checkbox" id="admin-force-order-now" style="width:18px;height:18px;accent-color:var(--green-600)" onchange="toggleForceOrderNow(event)" />
-            <label for="admin-force-order-now" style="margin:0;font-size:14px;cursor:pointer">
-              <strong>Enable "Order Now" for today</strong> (Overrides weekday restriction)
-            </label>
-        </div>
+      <div style="padding:16px;">
+        <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--green-50,#f0fdf4);border-radius:var(--radius-sm);border:1px solid var(--green-200,#bbf7d0);cursor:pointer;">
+          <input type="checkbox" id="admin-force-order-now" style="width:20px;height:20px;accent-color:var(--green-600);flex-shrink:0;margin-top:2px;" onchange="toggleForceOrderNow(event)" />
+          <span style="line-height:1.5;">
+            <strong style="font-size:14px;display:block;">Enable "Order Now" for today</strong>
+            <span style="font-size:12px;color:var(--text-soft);">Overrides the Mon-Thu restriction. Customers can order for today.</span>
+          </span>
+        </label>
       </div>
     </div>
 
+    <!-- Blackout Dates -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <div class="admin-card-title">&#x1F4C5; Holiday &amp; Blackout Dates</div>
+          <div class="admin-card-subtitle">Dates the store is closed — customers cannot select these for orders</div>
+        </div>
+      </div>
+      <div style="padding:16px;">
+        <div class="matcha-chips" id="blackout-dates-list" style="margin-bottom:12px;">
+          <!-- Rendered by admin.js -->
+        </div>
+        <div class="matcha-add-row" style="max-width:320px;">
+          <input type="date" class="matcha-add-input" id="new-blackout-date" />
+          <button class="admin-primary-btn" onclick="addBlackoutDate()">+ Add Date</button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- ── Reports Section ── -->
+  <!-- ══ REPORTS SECTION ══ -->
   <div class="orders-container hidden" id="reports-section">
     <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Sales Reports</h1>
-      
-      <!-- Date Filter -->
-      <div style="display:flex;gap:8px;align-items:center;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <label for="report-date-start" style="margin:0;font-size:13px;font-weight:700">From:</label>
         <input type="date" id="report-date-start" style="padding:4px 8px;font-size:13px;width:auto;" onchange="generateReports()" />
         <label for="report-date-end" style="margin:0;font-size:13px;font-weight:700">To:</label>
@@ -206,31 +239,28 @@
       </div>
     </div>
 
-    <!-- Summary Metrics -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;margin-bottom:20px;">
       <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
-        <div style="font-size:12px;color:var(--text-soft);font-weight:700;text-transform:uppercase;margin-bottom:4px">Total Sales</div>
-        <div id="report-total-sales" style="font-size:24px;font-weight:900;color:var(--green-700)">₱0</div>
+        <div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Sales</div>
+        <div id="report-total-sales" style="font-size:26px;font-weight:900;color:var(--green-700)">&#8369;0</div>
       </div>
       <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
-        <div style="font-size:12px;color:var(--text-soft);font-weight:700;text-transform:uppercase;margin-bottom:4px">Total Orders</div>
-        <div id="report-total-orders" style="font-size:24px;font-weight:900;color:var(--green-700)">0</div>
+        <div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Orders</div>
+        <div id="report-total-orders" style="font-size:26px;font-weight:900;color:var(--green-700)">0</div>
       </div>
       <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
-        <div style="font-size:12px;color:var(--text-soft);font-weight:700;text-transform:uppercase;margin-bottom:4px">Items Sold</div>
-        <div id="report-total-items" style="font-size:24px;font-weight:900;color:var(--green-700)">0</div>
+        <div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Items Sold</div>
+        <div id="report-total-items" style="font-size:26px;font-weight:900;color:var(--green-700)">0</div>
       </div>
     </div>
 
-    <!-- Top Selling Items -->
     <div class="admin-card">
       <div class="admin-card-header">
         <div>
-          <div class="admin-card-title">🏆 Top Selling Drinks</div>
+          <div class="admin-card-title">&#x1F3C6; Top Selling Drinks</div>
         </div>
       </div>
       <div class="admin-addons-list" id="report-top-items" style="padding:16px;">
-        <!-- Rendered by admin.js -->
         <div class="empty-state"><p>No data for selected date range.</p></div>
       </div>
     </div>
@@ -246,7 +276,7 @@
 
       <div class="modal-header">
         <div class="modal-title" id="modal-order-number">SM-0001</div>
-        <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+        <button class="modal-close" onclick="closeModal()" aria-label="Close">&#x2715;</button>
       </div>
 
       <div class="modal-body" id="modal-body">
@@ -274,7 +304,7 @@
 
       <div class="modal-header">
         <div class="modal-title" id="drink-modal-title">Add Drink</div>
-        <button class="modal-close" onclick="closeDrinkModal()" aria-label="Close">✕</button>
+        <button class="modal-close" onclick="closeDrinkModal()" aria-label="Close">&#x2715;</button>
       </div>
 
       <div class="modal-body">
@@ -284,8 +314,8 @@
           <div class="form-group" style="margin-bottom:14px">
             <label for="drink-category">Drink Series / Category <span class="required">*</span></label>
             <select id="drink-category" required>
-              <option value="matcha">🍵 Matcha Series</option>
-              <option value="hojicha">🍂 Hojicha Series</option>
+              <option value="matcha">&#x1F375; Matcha Series</option>
+              <option value="hojicha">&#x1F342; Hojicha Series</option>
             </select>
           </div>
 
@@ -295,7 +325,7 @@
           </div>
 
           <div class="form-group" style="margin-bottom:14px">
-            <label for="drink-price">Price (₱) <span class="required">*</span></label>
+            <label for="drink-price">Price (&#8369;) <span class="required">*</span></label>
             <input type="number" id="drink-price" placeholder="199" min="0" required />
           </div>
 
@@ -333,7 +363,7 @@
 
             <div class="image-preview-container">
               <div class="image-preview-box" id="image-preview-box">
-                <span class="image-preview-placeholder">🍵</span>
+                <span class="image-preview-placeholder">&#x1F375;</span>
               </div>
               <div style="font-size:12px;color:var(--text-soft)">
                 <button type="button" class="admin-action-btn delete" onclick="clearDrinkImage()" id="clear-img-btn" style="display:none">Remove Picture</button>
@@ -356,7 +386,7 @@
     <div class="modal-sheet">
       <div class="modal-header">
         <div class="modal-title">Crop Image</div>
-        <button class="modal-close" onclick="closeCropModal()">✕</button>
+        <button class="modal-close" onclick="closeCropModal()">&#x2715;</button>
       </div>
       <div class="modal-body" style="padding:0">
         <div style="width:100%; height:300px; background:#f0f0f0;">
@@ -364,7 +394,7 @@
         </div>
         <div class="modal-form-actions" style="padding:16px">
           <button type="button" class="btn-secondary" onclick="closeCropModal()">Cancel</button>
-          <button type="button" class="btn-primary" onclick="confirmCrop()">Crop & Save</button>
+          <button type="button" class="btn-primary" onclick="confirmCrop()">Crop &amp; Save</button>
         </div>
       </div>
     </div>
