@@ -591,7 +591,7 @@ function calculateDistanceFee(lat, lng) {
     if (isOutsideDeliveryLimit) {
       distEl.innerHTML = `<span style="color:#dc2626; font-weight:bold;">(${km.toFixed(1)} km) Out of range! Max ${maxKm} km.</span>`;
     } else {
-      distEl.innerHTML = `(${km.toFixed(1)} km \u2022 \u20b1${FEE_BASE} base + \u20b1${FEE_PER_KM}\u00d7${km.toFixed(1)}km)`;
+      distEl.innerHTML = `(${km.toFixed(1)} km)`;
     }
     distEl.style.display = '';
   }
