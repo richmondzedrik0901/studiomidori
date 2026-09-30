@@ -15,6 +15,7 @@ const STORE_LNG = 120.612134;
 const FEE_BASE = 25;        // ₱25 base pay
 const FEE_PER_KM = 10;       // ₱10 per km
 let DELIVERY_FEE = 0;        // recalculated whenever a pin is set
+let isOutsideDeliveryLimit = false;
 
 // ── Dynamic Menu State ────────────────────────────────────────────────
 let products = [];        // loaded from Firebase only
@@ -549,10 +550,22 @@ function calculateDistanceFee(lat, lng) {
   const km = haversineKm(STORE_LAT, STORE_LNG, lat, lng);
   DELIVERY_FEE = Math.round(FEE_BASE + FEE_PER_KM * km);
 
+  isOutsideDeliveryLimit = false;
+  const limitEnabled = storeSettings.limitDeliveryArea;
+  const maxKm = storeSettings.deliveryMaxKm || 5;
+
+  if (limitEnabled && km > maxKm) {
+    isOutsideDeliveryLimit = true;
+  }
+
   // Update distance label in the order summary
   const distEl = $('summary-delivery-dist');
   if (distEl) {
-    distEl.textContent = `(${km.toFixed(1)} km \u2022 \u20b1${FEE_BASE} base + \u20b1${FEE_PER_KM}\u00d7${km.toFixed(1)}km)`;
+    if (isOutsideDeliveryLimit) {
+      distEl.innerHTML = `<span style="color:#dc2626; font-weight:bold;">(${km.toFixed(1)} km) Out of range! Max ${maxKm} km.</span>`;
+    } else {
+      distEl.innerHTML = `(${km.toFixed(1)} km \u2022 \u20b1${FEE_BASE} base + \u20b1${FEE_PER_KM}\u00d7${km.toFixed(1)}km)`;
+    }
     distEl.style.display = '';
   }
 
@@ -856,7 +869,11 @@ function updateSummary() {
     // Show shipping fee separately when delivery is selected and pin is placed
     const shippingEl = $('sticky-cart-shipping');
     if (shippingEl) {
-      if (isDelivery && hasPinned && deliveryFee > 0) {
+      if (isDelivery && isOutsideDeliveryLimit) {
+        shippingEl.textContent = '(Out of Range)';
+        shippingEl.style.color = '#dc2626';
+        shippingEl.style.display = '';
+      } else if (isDelivery && hasPinned && deliveryFee > 0) {
         shippingEl.textContent = `(\u20b1${subtotal.toLocaleString()} + \u20b1${deliveryFee.toLocaleString()} shipping)`;
         shippingEl.style.color = 'var(--text-soft)';
         shippingEl.style.display = '';
@@ -867,6 +884,20 @@ function updateSummary() {
       } else {
         shippingEl.style.display = 'none';
       }
+    }
+  }
+
+  // Disable checkout button if outside range
+  const checkoutBtn = $('place-order-btn');
+  if (checkoutBtn) {
+    if (isDelivery && isOutsideDeliveryLimit) {
+      checkoutBtn.disabled = true;
+      checkoutBtn.textContent = 'Out of Delivery Range';
+      checkoutBtn.style.background = '#d1d5db'; // gray out
+    } else {
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = '🍵 Place Order';
+      checkoutBtn.style.background = ''; // restore normal styling
     }
   }
 
@@ -1187,6 +1218,13 @@ function validateForm() {
     if (!address) {
       showToast('Please enter your delivery address / landmark.');
       $('delivery-address').focus();
+      return false;
+    }
+
+    if (isOutsideDeliveryLimit) {
+      const maxKm = storeSettings.deliveryMaxKm || 5;
+      showToast(`⚠️ Your location is outside our maximum delivery range of ${maxKm} km. Please select pick-up.`);
+      $('delivery-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return false;
     }
   }

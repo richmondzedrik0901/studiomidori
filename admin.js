@@ -683,6 +683,18 @@ function startListeningMenu() {
     adminBlackoutDates = settings.blackoutDates || [];
     window.adminBlackoutDates = adminBlackoutDates;
     if (window.renderBlackoutDates) window.renderBlackoutDates();
+
+    const limitDelivery = document.getElementById('admin-limit-delivery-area');
+    const limitSettings = document.getElementById('admin-delivery-limit-settings');
+    const maxKmSlider = document.getElementById('admin-delivery-max-km');
+    const maxKmDisplay = document.getElementById('admin-delivery-max-km-display');
+    if (limitDelivery && limitSettings && maxKmSlider && maxKmDisplay) {
+      limitDelivery.checked = !!settings.limitDeliveryArea;
+      limitSettings.style.display = settings.limitDeliveryArea ? 'block' : 'none';
+      const maxKm = settings.deliveryMaxKm || 5;
+      maxKmSlider.value = maxKm;
+      maxKmDisplay.textContent = maxKm + ' km';
+    }
   });
 }
 
@@ -704,6 +716,38 @@ window.toggleAllowAdvanceDelivery = async function(e) {
   } catch (err) {
     console.error('Failed to update settings:', err);
     showToast('Failed to update settings.');
+  }
+};
+
+window.toggleDeliveryLimit = async function(e) {
+  const isEnabled = e.target.checked;
+  const limitSettings = document.getElementById('admin-delivery-limit-settings');
+  if (limitSettings) {
+    limitSettings.style.display = isEnabled ? 'block' : 'none';
+  }
+  try {
+    await update(ref(db, 'menu/settings'), { limitDeliveryArea: isEnabled });
+    showToast('Updated delivery limit setting ✓');
+  } catch (err) {
+    console.error('Failed to update setting:', err);
+    showToast('Failed to update setting.');
+  }
+};
+
+window.updateDeliveryMaxKmDisplay = function(val) {
+  const maxKmDisplay = document.getElementById('admin-delivery-max-km-display');
+  if (maxKmDisplay) {
+    maxKmDisplay.textContent = val + ' km';
+  }
+};
+
+window.saveDeliveryMaxKm = async function(val) {
+  try {
+    await update(ref(db, 'menu/settings'), { deliveryMaxKm: parseFloat(val) });
+    showToast('Updated maximum delivery distance ✓');
+  } catch (err) {
+    console.error('Failed to update distance:', err);
+    showToast('Failed to update setting.');
   }
 };
 

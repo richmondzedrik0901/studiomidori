@@ -198,6 +198,21 @@
             <span style="font-size:12px;color:var(--text-soft);">When enabled, customers can select Delivery for advance orders. Otherwise, advance orders are Pickup only.</span>
           </span>
         </label>
+        
+        <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--green-50,#f0fdf4);border-radius:var(--radius-sm);border:1px solid var(--green-200,#bbf7d0);cursor:pointer;margin-top:12px;">
+          <input type="checkbox" id="admin-limit-delivery-area" style="width:20px;height:20px;accent-color:var(--green-600);flex-shrink:0;margin-top:2px;" onchange="toggleDeliveryLimit(event)" />
+          <span style="line-height:1.5; width:100%;">
+            <strong style="font-size:14px;display:block;">Limit Delivery Area</strong>
+            <span style="font-size:12px;color:var(--text-soft);">Block delivery checkout if the distance exceeds the maximum allowed kilometers.</span>
+            
+            <div id="admin-delivery-limit-settings" style="margin-top:12px; display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:13px; font-weight:700;">Max Distance: <span id="admin-delivery-max-km-display" style="color:var(--green-700);">5 km</span></span>
+              </div>
+              <input type="range" id="admin-delivery-max-km" min="1" max="50" step="0.1" value="5" style="width:100%; accent-color:var(--green-600);" oninput="updateDeliveryMaxKmDisplay(this.value)" onchange="saveDeliveryMaxKm(this.value)" />
+            </div>
+          </span>
+        </label>
       </div>
     </div>
 
