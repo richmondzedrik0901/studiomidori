@@ -71,9 +71,12 @@
   <div class="orders-container" id="orders-section">
     <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Orders</h1>
-      <a href="index.html" style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
-        &#x1F375; Order Page &#x2197;
-      </a>
+      <div style="display:flex; gap: 8px;">
+        <button class="admin-primary-btn" onclick="openManualOrderModal()" style="font-size:13px; padding:6px 14px;">+ Add Manual Order</button>
+        <a href="index.html" style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
+          &#x1F375; Order Page &#x2197;
+        </a>
+      </div>
     </div>
     <div class="tab-bar" id="tab-bar" role="tablist" aria-label="Filter by status">
       <!-- Built by admin.js -->
@@ -369,6 +372,103 @@
         </form>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       MANUAL ORDER MODAL
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="manual-order-modal" role="dialog" aria-modal="true" aria-labelledby="manual-order-title">
+    <div class="modal-sheet">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header">
+        <div class="modal-title" id="manual-order-title">Add Manual Order</div>
+        <button class="modal-close" onclick="closeManualOrderModal()" aria-label="Close">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <form id="manual-order-form" onsubmit="saveManualOrder(event)">
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Customer Name <span class="required">*</span></label>
+            <input type="text" id="manual-customer-name" required />
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Order Date <span class="required">*</span></label>
+            <input type="date" id="manual-order-date" required />
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Type</label>
+            <select id="manual-delivery-type" style="width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-family:inherit; font-size:14px;">
+              <option value="pickup">Walk-in / Pickup</option>
+              <option value="delivery">Delivery</option>
+            </select>
+          </div>
+
+          <div style="margin-top:20px; margin-bottom: 10px; font-weight:bold; color:var(--green-800);">Order Items</div>
+          <div id="manual-order-items-list" style="margin-bottom:14px;">
+            <!-- Items will be listed here -->
+          </div>
+          
+          <button type="button" class="admin-action-btn" onclick="openManualItemBuilder()" style="width:100%; padding:10px; margin-bottom:14px; text-align:center;">+ Add Drink</button>
+
+          <div class="modal-total-section" style="margin-bottom:20px;">
+            <div class="modal-total-row grand">
+              <span>Total</span>
+              <span id="manual-order-grand-total">₱0</span>
+            </div>
+          </div>
+
+          <div class="modal-form-actions">
+            <button type="button" class="btn-secondary" onclick="closeManualOrderModal()">Cancel</button>
+            <button type="submit" class="btn-primary" id="save-manual-order-btn">Create Order</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item Builder Sub-Modal -->
+  <div class="modal-overlay" id="manual-item-builder-modal" style="z-index: 3000;">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div class="modal-title">Add Drink to Order</div>
+        <button class="modal-close" onclick="closeManualItemBuilder()" aria-label="Close">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Select Drink</label>
+          <select id="manual-item-select" onchange="onManualDrinkSelect()" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:inherit; font-size:14px;">
+            <option value="">-- Choose Drink --</option>
+          </select>
+        </div>
+        
+        <div id="manual-item-options" style="display:none;">
+          <div class="form-group" style="margin-bottom:14px" id="manual-matcha-group">
+            <label>Matcha Variety</label>
+            <select id="manual-item-matcha" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:inherit; font-size:14px;">
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Sweetness</label>
+            <select id="manual-item-sweetness" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:inherit; font-size:14px;">
+              <option value="100%">100% Normal Sweet</option>
+              <option value="75%">75% Less Sweet</option>
+              <option value="50%">50% Half Sweet</option>
+              <option value="25%">25% Slight Sweet</option>
+              <option value="0%">0% No Sugar</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Add-ons</label>
+            <div id="manual-item-addons-list"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Quantity</label>
+            <input type="number" id="manual-item-qty" value="1" min="1" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:inherit; font-size:14px;" />
+          </div>
+          
+          <button type="button" class="btn-primary" onclick="confirmManualItem()" style="width:100%;">Add to Order</button>
+        </div>
+      </div>
     </div>
   </div>
 

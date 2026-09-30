@@ -1150,6 +1150,252 @@ window.deleteDrink = async function(id, name) {
 
 
 // ══════════════════════════════════════════════════════════════════════
+// MANUAL ORDER MODULE
+// ══════════════════════════════════════════════════════════════════════
+
+let manualOrderCart = [];
+
+window.openManualOrderModal = function() {
+  manualOrderCart = [];
+  document.getElementById('manual-customer-name').value = '';
+  document.getElementById('manual-order-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('manual-delivery-type').value = 'pickup';
+  renderManualOrderCart();
+  document.getElementById('manual-order-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+};
+
+window.closeManualOrderModal = function() {
+  document.getElementById('manual-order-modal').classList.remove('open');
+  document.body.style.overflow = '';
+};
+
+function renderManualOrderCart() {
+  const container = document.getElementById('manual-order-items-list');
+  const totalEl = document.getElementById('manual-order-grand-total');
+  
+  if (manualOrderCart.length === 0) {
+    container.innerHTML = '<div style="font-size:13px; color:var(--text-soft); font-style:italic;">No items added yet.</div>';
+    totalEl.textContent = '₱0';
+    return;
+  }
+  
+  let grandTotal = 0;
+  container.innerHTML = manualOrderCart.map((item, index) => {
+    grandTotal += item.price * item.qty;
+    
+    let sub = [];
+    if (item.matcha) sub.push(item.matcha);
+    if (item.sweetness) sub.push(`${item.sweetness} sweet`);
+    if (item.addOns && item.addOns.length) {
+       sub.push('+ ' + item.addOns.map(a => `${a.name} ${a.qty > 1 ? `(x${a.qty})` : ''}`).join(', '));
+    }
+    
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding:8px 0;">
+        <div>
+          <div style="font-weight:bold; font-size:14px; color:var(--green-900);">${item.name} <span style="color:var(--text-soft); font-weight:normal;">x${item.qty}</span></div>
+          <div style="font-size:12px; color:var(--text-soft);">${sub.join(' · ')}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-weight:bold; color:var(--green-700);">₱${(item.price * item.qty).toLocaleString()}</div>
+          <button type="button" onclick="removeManualCartItem(${index})" style="background:none; border:none; color:#dc2626; cursor:pointer; font-size:18px; line-height:1; padding:4px;">&times;</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  totalEl.textContent = `₱${grandTotal.toLocaleString()}`;
+}
+
+window.removeManualCartItem = function(index) {
+  manualOrderCart.splice(index, 1);
+  renderManualOrderCart();
+};
+
+window.openManualItemBuilder = function() {
+  const select = document.getElementById('manual-item-select');
+  select.innerHTML = '<option value="">-- Choose Drink --</option>' + 
+    Object.values(adminMenuProducts)
+      .filter(p => p.available !== false)
+      .map(p => `<option value="${p.id}">${p.name} (₱${p.price})</option>`)
+      .join('');
+      
+  document.getElementById('manual-item-options').style.display = 'none';
+  document.getElementById('manual-item-builder-modal').classList.add('open');
+};
+
+window.closeManualItemBuilder = function() {
+  document.getElementById('manual-item-builder-modal').classList.remove('open');
+};
+
+window.onManualDrinkSelect = function() {
+  const select = document.getElementById('manual-item-select');
+  const val = select.value;
+  const optionsDiv = document.getElementById('manual-item-options');
+  
+  if (!val) {
+    optionsDiv.style.display = 'none';
+    return;
+  }
+  
+  const product = adminMenuProducts[val];
+  optionsDiv.style.display = 'block';
+  
+  // Setup Matcha Variety
+  const matchaGroup = document.getElementById('manual-matcha-group');
+  if (product.hasMatcha !== false && adminMatchaChoices.length > 0) {
+    matchaGroup.style.display = 'block';
+    const matchaSelect = document.getElementById('manual-item-matcha');
+    matchaSelect.innerHTML = adminMatchaChoices.map(c => `<option value="${c}">${c}</option>`).join('');
+  } else {
+    matchaGroup.style.display = 'none';
+  }
+  
+  // Setup Add-ons
+  const addonsList = document.getElementById('manual-item-addons-list');
+  const availableAddons = Object.values(adminAddOns).filter(a => a.available !== false);
+  addonsList.innerHTML = availableAddons.map(a => {
+    if (a.type === 'quantity' || a.unit === 'g') {
+      return `
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; align-items:center;">
+          <label style="font-size:13px; margin:0;"><input type="checkbox" class="manual-addon-cb" value="${a.id}" data-type="qty" onchange="toggleManualAddonQty('${a.id}')"> ${a.name} (+₱${a.price}/${a.unit || 'x'})</label>
+          <input type="number" id="manual-addon-qty-${a.id}" min="1" value="1" style="width:60px; padding:4px; border:1px solid var(--border); border-radius:4px; display:none;" />
+        </div>
+      `;
+    } else {
+      return `
+        <div style="margin-bottom:6px;">
+          <label style="font-size:13px; margin:0;"><input type="checkbox" class="manual-addon-cb" value="${a.id}" data-type="bool"> ${a.name} (+₱${a.price})</label>
+        </div>
+      `;
+    }
+  }).join('');
+  
+  document.getElementById('manual-item-sweetness').value = '100%';
+  document.getElementById('manual-item-qty').value = '1';
+};
+
+window.toggleManualAddonQty = function(id) {
+  const cb = document.querySelector(`.manual-addon-cb[value="${id}"]`);
+  const qtyInput = document.getElementById(`manual-addon-qty-${id}`);
+  if (cb && qtyInput) {
+    qtyInput.style.display = cb.checked ? 'block' : 'none';
+  }
+};
+
+window.confirmManualItem = function() {
+  const select = document.getElementById('manual-item-select');
+  const productId = select.value;
+  if (!productId) return;
+  const product = adminMenuProducts[productId];
+  
+  let itemPrice = product.price || 0;
+  
+  let matcha = null;
+  if (product.hasMatcha !== false && adminMatchaChoices.length > 0) {
+    matcha = document.getElementById('manual-item-matcha').value;
+  }
+  
+  const sweetness = document.getElementById('manual-item-sweetness').value;
+  
+  const addOns = [];
+  document.querySelectorAll('.manual-addon-cb:checked').forEach(cb => {
+    const a = adminAddOns[cb.value];
+    if (!a) return;
+    let qty = 1;
+    if (cb.dataset.type === 'qty') {
+      qty = parseInt(document.getElementById(`manual-addon-qty-${a.id}`).value) || 1;
+    }
+    addOns.push({
+      id: a.id,
+      name: a.name,
+      price: a.price,
+      qty: qty,
+      unit: a.unit
+    });
+    itemPrice += a.price * qty;
+  });
+  
+  const qty = parseInt(document.getElementById('manual-item-qty').value) || 1;
+  
+  manualOrderCart.push({
+    id: product.id,
+    name: product.name,
+    category: product.category,
+    price: itemPrice,
+    unitPrice: itemPrice,
+    qty: qty,
+    matcha,
+    sweetness,
+    addOns
+  });
+  
+  closeManualItemBuilder();
+  renderManualOrderCart();
+};
+
+window.saveManualOrder = async function(event) {
+  event.preventDefault();
+  
+  if (manualOrderCart.length === 0) {
+    showToast('Please add at least one item to the order.');
+    return;
+  }
+  
+  const name = document.getElementById('manual-customer-name').value.trim();
+  const date = document.getElementById('manual-order-date').value;
+  const type = document.getElementById('manual-delivery-type').value;
+  const btn = document.getElementById('save-manual-order-btn');
+
+  if (!name) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
+  // Generate a random order number like SM-XXXX
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  const orderNumber = 'SM-M' + randomNum; // M for manual
+
+  let grandTotal = 0;
+  manualOrderCart.forEach(item => {
+    grandTotal += item.price * item.qty;
+  });
+
+  const newOrder = {
+    orderNumber,
+    name,
+    mobile: 'N/A',
+    paymentMethod: 'Cash / COD',
+    deliveryType: type,
+    orderDate: date,
+    preferredTime: 'Anytime',
+    status: 'NEW',
+    timestamp: Date.now(),
+    subtotal: grandTotal,
+    deliveryFee: 0,
+    total: grandTotal,
+    items: manualOrderCart
+  };
+
+  try {
+    // Strip out any undefined values using JSON stringify, which Firebase strictly rejects
+    const cleanOrder = JSON.parse(JSON.stringify(newOrder));
+    const newRef = push(ref(db, 'orders'));
+    await set(newRef, cleanOrder);
+    closeManualOrderModal();
+    showToast(`Manual order ${orderNumber} created! ✓`);
+  } catch (err) {
+    console.error('Failed to create manual order:', err);
+    showToast('Failed to create order. Check connection.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Order';
+  }
+};
+
+
+// ══════════════════════════════════════════════════════════════════════
 // UTILITY & AUTH FUNCTIONS
 // ══════════════════════════════════════════════════════════════════════
 
@@ -1299,6 +1545,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('drink-modal')?.addEventListener('click', e => {
     if (e.target === e.currentTarget) closeDrinkModal();
+  });
+
+  document.getElementById('manual-order-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeManualOrderModal();
   });
 });
 
