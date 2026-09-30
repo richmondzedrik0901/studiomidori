@@ -23,6 +23,7 @@ let matchaChoices = [];   // loaded from Firebase only
 let addOns = {};          // loaded from Firebase only
 let storeSettings = {};   // loaded from Firebase only
 let selectedCategory = 'all'; // 'all', 'matcha', 'hojicha'
+let bestSellingProductNames = [];
 
 let savedState = {};
 try { savedState = JSON.parse(localStorage.getItem('midori_order_state')) || {}; } catch (e) { }
@@ -80,6 +81,29 @@ function listenToMenu() {
     storeSettings = snapshot.exists() ? snapshot.val() : {};
     if (window.reapplyDateMin) window.reapplyDateMin();
   }, (err) => console.warn('Could not load settings:', err));
+
+  // 5. Orders (for best selling products)
+  const ordersRef = ref(db, 'orders');
+  onValue(ordersRef, (snapshot) => {
+    bestSellingProductNames = [];
+    if (snapshot.exists()) {
+      const orders = Object.values(snapshot.val());
+      const itemCounts = {};
+      orders.forEach(o => {
+        if (o.status !== 'COMPLETED') return;
+        (o.items || []).forEach(item => {
+          if (item.name) {
+            itemCounts[item.name] = (itemCounts[item.name] || 0) + (item.qty || 1);
+          }
+        });
+      });
+      bestSellingProductNames = Object.entries(itemCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(e => e[0]);
+    }
+    buildProductList();
+  }, (err) => console.warn('Could not load orders for best selling:', err));
 }
 
 // ── Category Tab Switching ───────────────────────────────────────────
@@ -248,7 +272,10 @@ function buildProductList() {
       <div class="product-card-inner">
         <div class="product-img-wrap">${thumbHtml}</div>
         <div class="product-details">
-          <div class="product-name">${p.name}</div>
+          <div class="product-name">
+            ${p.name}
+            ${bestSellingProductNames.includes(p.name) ? `<span style="background:var(--green-100,#dcfce7);color:var(--green-800,#166534);font-size:10px;font-weight:800;padding:2px 6px;border-radius:8px;margin-left:8px;vertical-align:middle;text-transform:uppercase;letter-spacing:0.5px;border:1px solid var(--green-200,#bbf7d0); white-space: nowrap;">⭐ Best Seller</span>` : ''}
+          </div>
           ${p.description ? `<div class="product-desc">${p.description}</div>` : ''}
           <div class="product-price-row">
             <div class="product-price">₱${(p.price || 0).toLocaleString()}</div>
