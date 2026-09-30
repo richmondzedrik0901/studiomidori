@@ -14,12 +14,9 @@
  */
 
 const NotificationConfig = {
-  // ── Paste your webhook URL here ──────────────────────────────────
-  // Examples:
-  //   Make.com:  https://hook.eu1.make.com/xxxxxxxxxxxx
-  //   n8n:       https://your-n8n.app/webhook/xxxx
-  //   Zapier:    https://hooks.zapier.com/hooks/catch/xxxx/xxxx/
-  webhookUrl: import.meta.env.VITE_WEBHOOK_URL || '',  // <-- LOADED FROM .ENV
+  // ── Telegram Configuration ───────────────────────────────────────
+  telegramBotToken: import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '',
+  telegramChatId: import.meta.env.VITE_TELEGRAM_CHAT_ID || '',
 
   // Set to true to log order details to the browser console (for testing)
   debugMode: true,
@@ -90,30 +87,32 @@ export async function sendOrderNotification(order) {
     console.log('[Studio Midori] New order notification:\n', message);
   }
 
-  if (!NotificationConfig.webhookUrl) {
-    console.warn('[Studio Midori] No webhook URL configured. Order saved locally only.');
-    return { success: false, reason: 'no_webhook' };
+  if (!NotificationConfig.telegramBotToken || !NotificationConfig.telegramChatId) {
+    console.warn('[Studio Midori] Telegram credentials not configured. Order saved locally only.');
+    return { success: false, reason: 'no_credentials' };
   }
 
+  const telegramUrl = `https://api.telegram.org/bot${NotificationConfig.telegramBotToken}/sendMessage`;
+
   try {
-    const response = await fetch(NotificationConfig.webhookUrl, {
+    const response = await fetch(telegramUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        chat_id: NotificationConfig.telegramChatId,
         text: message,
-        order: order,
       }),
     });
 
     if (response.ok) {
-      console.log('[Studio Midori] Notification sent successfully.');
+      console.log('[Studio Midori] Telegram notification sent successfully.');
       return { success: true };
     } else {
-      console.error('[Studio Midori] Webhook returned error:', response.status);
-      return { success: false, reason: 'webhook_error', status: response.status };
+      console.error('[Studio Midori] Telegram API returned error:', response.status);
+      return { success: false, reason: 'telegram_api_error', status: response.status };
     }
   } catch (err) {
-    console.error('[Studio Midori] Failed to send notification:', err);
+    console.error('[Studio Midori] Failed to send Telegram notification:', err);
     return { success: false, reason: 'network_error', error: err.message };
   }
 }
