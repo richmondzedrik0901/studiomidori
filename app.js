@@ -1174,12 +1174,19 @@ function setupDateTimeRules() {
 // ── Form Validation ──────────────────────────────────────────────────
 function validateForm() {
   const name = $('customer-name').value.trim();
-  const mobile = $('mobile-number').value.trim();
+  const mobile = $('mobile-number').value.trim().replace(/[\s-]/g, '');
   const date = $('order-date').value;
   const time = $('preferred-time').value;
 
   if (!name) { showToast('Please enter your name.'); $('customer-name').focus(); return false; }
   if (!mobile) { showToast('Please enter your mobile number.'); $('mobile-number').focus(); return false; }
+
+  const phMobileRegex = /^(09|\+639|639)\d{9}$/;
+  if (!phMobileRegex.test(mobile)) {
+    showToast('Please enter a valid Philippine mobile number (e.g. 09123456789).');
+    $('mobile-number').focus();
+    return false;
+  }
   if (!date) { showToast('Please choose an order date.'); $('order-date').focus(); return false; }
   if (!time) {
     showToast(state.deliveryType === 'delivery' ? 'Please choose a preferred delivery time.' : 'Please choose a preferred pick-up time.');
@@ -1304,7 +1311,7 @@ async function placeOrder() {
       timestamp: new Date().toISOString(),
       status: 'NEW',
       name: $('customer-name').value.trim(),
-      mobile: $('mobile-number').value.trim(),
+      mobile: $('mobile-number').value.trim().replace(/[\s-]/g, ''),
       deliveryType: state.deliveryType,
       latitude: orderLat,
       longitude: orderLng,
