@@ -51,6 +51,14 @@
   padding: 0;
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
@@ -81,7 +89,7 @@ h3 {
   padding: 8px 16px;
   position: sticky;
   top: 0;
-  overflow: visible;
+  overflow: hidden;
   border-bottom: none;
   box-shadow: 0 4px 20px rgba(30, 45, 14, 0.35);
   z-index: 500;

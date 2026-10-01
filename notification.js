@@ -23,6 +23,23 @@ const NotificationConfig = {
 };
 
 /**
+ * Formats a 24-hour time string ("HH:MM") into 12-hour format with AM/PM.
+ * e.g., "13:30" -> "1:30 PM", "09:00" -> "9:00 AM".
+ */
+export function formatTime(timeStr) {
+  if (!timeStr) return '—';
+  if (/am|pm/i.test(timeStr)) return timeStr;
+  const parts = String(timeStr).trim().split(':');
+  if (parts.length < 2) return timeStr;
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(h) || isNaN(m)) return timeStr;
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+/**
  * Formats a plain-text notification message from an order object.
  */
 export function formatOrderMessage(order) {
@@ -66,7 +83,7 @@ FB Name: ${order.fbName}
 
 Type: ${order.deliveryType === 'pickup' ? '🏪 Pickup' : '🛵 Delivery'}${deliveryInfo}
 Date: ${order.orderDate}
-${order.deliveryType === 'delivery' ? 'Delivery Time' : 'Pick-up Time'}: ${order.preferredTime}
+${order.deliveryType === 'delivery' ? 'Delivery Time' : 'Pick-up Time'}: ${formatTime(order.preferredTime)}
 
 Items:
 ${itemLines}
