@@ -31,8 +31,22 @@
 
   <!-- ── Header ── -->
   <header class="site-header">
-    <div class="site-header-logo-wrap">
-      <img src="logo.png" alt="Studio Midori" class="logo-img" />
+    <div class="site-header-inner">
+      <div class="site-header-spacer" aria-hidden="true"></div>
+      <div class="site-header-logo-wrap">
+        <img src="logo.png" alt="Studio Midori" class="logo-img" />
+      </div>
+      <button class="header-cart-btn" id="header-cart-btn" type="button" aria-label="View Shopping Cart" title="View Cart">
+        <span class="header-cart-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          <span class="header-cart-badge hidden" id="header-cart-badge">0</span>
+        </span>
+        <span class="header-cart-label">Cart</span>
+      </button>
     </div>
   </header>
 
@@ -83,18 +97,33 @@
           </div>
         </div>
 
-        <button type="button" class="place-order-btn" style="margin-top:20px" onclick="window.nextWizardStep(2)">
-          Next: How &amp; When &#10132;
-        </button>
+        <div class="step-1-checkout-bar">
+          <button type="button" class="place-order-btn" id="step-1-next-btn" onclick="window.openCartDrawer()">
+            <span>🛒 View Cart &amp; Checkout</span>
+            <span id="step-1-count-pill" class="step-count-pill">0 drinks</span>
+          </button>
+        </div>
       </div><!-- /wizard-step-1 -->
 
       <!-- WIZARD STEP 2: LOGISTICS -->
       <div id="wizard-step-2" class="wizard-step hidden">
         <div style="height:14px"></div>
-        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:16px"
+        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:12px"
           onclick="window.nextWizardStep(1)">
           &#8592; Back to Menu
         </button>
+
+        <!-- ── Cart Quick Strip (click to review or edit cart) ── -->
+        <div class="cart-quick-summary-strip" id="cart-quick-strip" onclick="window.openCartDrawer()" title="Click to view cart items">
+          <div class="cart-strip-left">
+            <span class="cart-strip-icon">🛒</span>
+            <div>
+              <div class="cart-strip-title">Your Cart (<span id="strip-cart-count">0 drinks</span>)</div>
+              <div class="cart-strip-sub" id="strip-cart-sub">Subtotal: ₱0</div>
+            </div>
+          </div>
+          <span class="cart-strip-btn">Review Cart ↗</span>
+        </div>
 
         <!-- ── Date & Time ── -->
         <div class="card">
@@ -495,20 +524,137 @@
     </div>
   </div>
 
-  <!-- ── Mobile Sticky Cart Bar ── -->
+  <!-- ── Floating / Sticky Cart Bar (Shopee Style) ── -->
   <div class="mobile-sticky-cart hidden" id="mobile-sticky-cart">
     <div class="sticky-cart-content">
-      <div class="sticky-cart-info">
-        <span class="sticky-cart-count" id="sticky-cart-count">0 drinks</span>
+      <div class="sticky-cart-info" onclick="window.openCartDrawer()" style="cursor:pointer;" title="Tap to view your cart">
+        <div class="sticky-cart-info-top">
+          <span class="sticky-cart-icon">🛒</span>
+          <span class="sticky-cart-count" id="sticky-cart-count">0 drinks</span>
+        </div>
         <div style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
           <span class="sticky-cart-total" id="sticky-cart-total">&#8369;0</span>
           <span id="sticky-cart-shipping" style="font-size:11px;font-weight:600;color:var(--green-600);display:none;">+
             &#8369;0 shipping</span>
         </div>
       </div>
-      <button class="sticky-cart-btn" id="sticky-cart-btn" type="button">
-        Review & Checkout ➔
-      </button>
+      <div class="sticky-cart-actions">
+        <button class="sticky-cart-btn-secondary" id="sticky-view-cart-btn" type="button" onclick="window.openCartDrawer()">
+          View Cart 🛒
+        </button>
+        <button class="sticky-cart-btn" id="sticky-cart-btn" type="button">
+          Checkout ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SHOPEE-STYLE SHOPPING CART DRAWER
+  ══════════════════════════════════════════ -->
+  <div id="cart-drawer-backdrop" class="cart-drawer-backdrop hidden" onclick="window.closeCartDrawer()"></div>
+  <aside id="cart-drawer" class="cart-drawer hidden" aria-label="Shopping Cart Drawer" role="dialog" aria-modal="true">
+    <div class="cart-drawer-header">
+      <div class="cart-drawer-title-group">
+        <span class="cart-drawer-icon">🛒</span>
+        <h2>Your Cart</h2>
+        <span class="cart-badge-pill" id="cart-drawer-count">0 drinks</span>
+      </div>
+      <div class="cart-drawer-header-actions">
+        <button type="button" class="btn-clear-cart" id="btn-clear-cart" onclick="window.confirmClearCart()" title="Empty cart">Clear</button>
+        <button type="button" class="cart-drawer-close" onclick="window.closeCartDrawer()" aria-label="Close cart">&times;</button>
+      </div>
+    </div>
+
+    <!-- Scrollable Items List -->
+    <div class="cart-drawer-body" id="cart-drawer-body">
+      <!-- Items dynamically populated by app.js -->
+    </div>
+
+    <!-- Cart Footer with Checkout CTA -->
+    <div class="cart-drawer-footer" id="cart-drawer-footer">
+      <div class="cart-footer-summary">
+        <div class="cart-footer-subtotal-row">
+          <span class="cart-footer-label">Subtotal</span>
+          <span class="cart-footer-subtotal" id="cart-drawer-subtotal">₱0</span>
+        </div>
+        <div class="cart-footer-hint">🛵 Delivery fee &amp; schedule selected at next step</div>
+      </div>
+      <div class="cart-footer-buttons-stack">
+        <button type="button" class="cart-checkout-btn" id="cart-drawer-checkout-btn" onclick="window.checkoutFromCart()">
+          <span>Proceed to Checkout</span>
+          <span class="cart-checkout-count" id="cart-drawer-btn-count">(0)</span>
+          <span class="cart-checkout-arrow">➔</span>
+        </button>
+        <button type="button" class="cart-continue-btn" id="cart-drawer-continue-btn" onclick="window.continueShopping()">
+          ← Add More Drinks / Back to Menu
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════
+       DRINK CUSTOMIZATION MODAL (SHOPEE STYLE)
+  ══════════════════════════════════════════ -->
+  <div id="customization-backdrop" class="customization-backdrop hidden" onclick="window.closeCustomizationModal()"></div>
+  <div id="customization-modal" class="customization-modal hidden" role="dialog" aria-modal="true" aria-labelledby="custom-modal-title">
+    <div class="customization-modal-dialog">
+      <div class="customization-modal-header">
+        <div class="custom-header-product">
+          <div class="custom-header-img-wrap" id="custom-modal-img-wrap">
+            <span class="product-img-fallback">🍵</span>
+          </div>
+          <div class="custom-header-info">
+            <h3 id="custom-modal-title">Drink Name</h3>
+            <div class="custom-modal-price" id="custom-modal-price">₱0</div>
+          </div>
+        </div>
+        <button type="button" class="custom-modal-close" onclick="window.closeCustomizationModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="customization-modal-body" id="customization-modal-body">
+        <!-- Matcha Cultivar Chips -->
+        <div class="custom-option-section" id="custom-matcha-section">
+          <label class="custom-section-label">🍵 Matcha Cultivar</label>
+          <div class="custom-chip-group" id="custom-matcha-chips"></div>
+        </div>
+
+        <!-- Sweetness Level Buttons -->
+        <div class="custom-option-section" id="custom-sweetness-section">
+          <div class="custom-section-header">
+            <label class="custom-section-label">🍬 Sweetness Level</label>
+            <span class="custom-section-selected" id="custom-sweetness-selected">100% Sweet</span>
+          </div>
+          <div class="custom-sweetness-buttons" id="custom-sweetness-buttons"></div>
+        </div>
+
+        <!-- Optional Add-ons -->
+        <div class="custom-option-section" id="custom-addons-section">
+          <label class="custom-section-label">✨ Optional Add-ons</label>
+          <div class="custom-addons-list" id="custom-addons-list"></div>
+        </div>
+
+        <!-- Quantity Stepper -->
+        <div class="custom-option-section custom-qty-section" id="custom-qty-section">
+          <div>
+            <label class="custom-section-label" style="margin-bottom:0">Number of Cups</label>
+            <div class="custom-section-sub">Prepare with these exact options</div>
+          </div>
+          <div class="custom-stepper">
+            <button type="button" class="custom-stepper-btn" onclick="window.stepCustomQty(-1)" id="custom-qty-minus" aria-label="Decrease quantity">−</button>
+            <span class="custom-stepper-value" id="custom-qty-value">1</span>
+            <button type="button" class="custom-stepper-btn" onclick="window.stepCustomQty(1)" aria-label="Increase quantity">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="customization-modal-footer">
+        <button type="button" class="btn-submit-customization" id="btn-submit-customization" onclick="window.submitCustomization()">
+          <span id="custom-submit-text">Add to Cart</span>
+          <span class="custom-submit-divider">•</span>
+          <span class="custom-submit-price" id="custom-submit-price">₱0</span>
+        </button>
+      </div>
     </div>
   </div>
 

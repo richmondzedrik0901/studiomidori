@@ -29,21 +29,36 @@ let savedState = {};
 try { savedState = JSON.parse(localStorage.getItem('midori_order_state')) || {}; } catch (e) { }
 
 const state = {
-  // keyed by instanceKey = `${productId}__${n}`, value = { productId, instanceIndex, matcha, sweetness, addOns[] }
+  // keyed by variationKey, value = { productId, matcha, sweetness, addOns[], qty }
   items: savedState.items || {},
   deliveryType: savedState.deliveryType || 'pickup',
 };
 
-// Returns all instance keys for a given productId, sorted
-function getProductInstances(productId) {
-  return Object.keys(state.items)
-    .filter(k => state.items[k].productId === productId)
-    .sort();
+// Normalize any items from legacy storage to ensure qty property exists
+Object.values(state.items).forEach(item => {
+  if (!item.qty || item.qty < 1) item.qty = 1;
+});
+
+// Returns variation fingerprint so identical cup options group together with quantity
+function getVariationKey(productId, matcha, sweetness, addOns) {
+  const sortedAddOns = (addOns || [])
+    .slice()
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map(a => `${a.id}:${a.qty || 1}`)
+    .join('|');
+  return `${productId}__${matcha || 'none'}__${sweetness || '100%'}__${sortedAddOns}`;
 }
 
-// How many instances does a product have?
+// How many total cups does a product have across all customized variations in the cart?
 function getProductQty(productId) {
-  return getProductInstances(productId).length;
+  return Object.values(state.items)
+    .filter(k => k.productId === productId)
+    .reduce((sum, k) => sum + (k.qty || 1), 0);
+}
+
+// Total cups in entire cart
+function getTotalCartQty() {
+  return Object.values(state.items).reduce((sum, k) => sum + (k.qty || 1), 0);
 }
 
 // ── DOM Helpers ──────────────────────────────────────────────────────
@@ -153,107 +168,10 @@ function buildProductList() {
     }
   });
 
-  const activeAddOnsList = Object.values(addOns).filter(a => a.available !== false);
-
-  // ── Build add-ons HTML for a specific instance ──────────────────────
-  function buildAddOnsHtml(p, instanceKey) {
-    if (activeAddOnsList.length === 0) return '';
-    const selectedAddOns = state.items[instanceKey]?.addOns || [];
-    const isHojichaProduct = p.category === 'hojicha';
-
-    const filteredAddOns = activeAddOnsList.filter(a => {
-      if (isHojichaProduct) {
-        if (a.id === 'extra-shot') return false;
-        if (a.id !== 'extra-matcha-gram' && a.name.toLowerCase().includes('matcha')) return false;
-      } else {
-        if (a.name.toLowerCase().includes('hojicha')) return false;
-      }
-      return true;
-    });
-
-    const pillsHtml = filteredAddOns.map(a => {
-      const isQty = a.type === 'quantity' || a.id.includes('gram') ||
-        (a.name && a.name.toLowerCase().includes('per gram')) ||
-        (a.name && a.name.toLowerCase().includes('matcha'));
-      const selectedItem = selectedAddOns.find(item => item.id === a.id);
-      const currentGramQty = selectedItem ? (selectedItem.qty || 1) : 0;
-      const isChecked = Boolean(selectedItem);
-      const displayName = (isHojichaProduct && a.id === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : a.name;
-      const safeKey = instanceKey.replace(/'/g, "\\'");
-
-      if (isQty) {
-        return `
-          <div class="addon-pill quantity-addon ${currentGramQty > 0 ? 'is-active' : ''}" id="addon-ctrl-${instanceKey}-${a.id}">
-            <span>${displayName}</span>
-            <span class="addon-price-tag">+₱${a.price}/g</span>
-            <div class="addon-stepper">
-              <button type="button" class="addon-stepper-btn"
-                onclick="changeDrinkAddOnQty('${safeKey}', '${a.id}', -1)"
-                ${currentGramQty === 0 ? 'disabled' : ''} title="Decrease grams">−</button>
-              <span class="addon-stepper-qty" id="addon-qty-${instanceKey}-${a.id}">${currentGramQty}g</span>
-              <button type="button" class="addon-stepper-btn"
-                onclick="changeDrinkAddOnQty('${safeKey}', '${a.id}', 1)"
-                title="Add more grams">+</button>
-            </div>
-          </div>`;
-      }
-
-      return `
-        <label class="addon-pill">
-          <input type="checkbox" ${isChecked ? 'checked' : ''}
-            onchange="toggleDrinkAddOn('${safeKey}', '${a.id}')" />
-          <span>${a.name}</span>
-          <span class="addon-price-tag">+₱${a.price}</span>
-        </label>`;
-    }).join('');
-
-    return `
-      <div class="addons-section">
-        <div class="addons-label">✨ Optional Add-ons</div>
-        <div class="addons-grid">${pillsHtml}</div>
-      </div>`;
-  }
-
-  // ── Render one instance panel (a single cup) ─────────────────────────
-  function renderInstancePanel(p, instanceKey, instanceIndex, totalInstances) {
-    const inst = state.items[instanceKey];
-    if (!inst) return '';
-    const currentMatcha = inst.matcha || (matchaChoices[0] || 'Classic');
-    const currentSweetness = inst.sweetness || '100%';
-    const safeKey = instanceKey.replace(/'/g, "\\'");
-    const label = totalInstances > 1 ? `Cup ${instanceIndex + 1}` : 'Your Cup';
-    const canRemove = totalInstances > 1;
-
-    return `
-      <div class="cup-instance-panel" id="cup-panel-${instanceKey}">
-        <div class="cup-instance-header">
-          <span class="cup-instance-label">🍵 ${label}</span>
-          ${canRemove ? `<button type="button" class="cup-remove-btn" onclick="removeDrinkInstance('${safeKey}')" title="Remove this cup">✕ Remove</button>` : ''}
-        </div>
-        <div class="product-options-grid">
-          ${p.hasMatcha ? `
-          <div class="form-group">
-            <label for="matcha-${instanceKey}">🍵 Matcha Cultivar</label>
-            <select id="matcha-${instanceKey}" onchange="updateOption('${safeKey}', 'matcha', this.value)">
-              ${matchaChoices.map(c => `<option value="${c}" ${c === currentMatcha ? 'selected' : ''}>${c}</option>`).join('')}
-            </select>
-          </div>` : ''}
-          <div class="form-group">
-            <label for="sweetness-${instanceKey}">🍬 Sweetness</label>
-            <select id="sweetness-${instanceKey}" onchange="updateOption('${safeKey}', 'sweetness', this.value)">
-              ${SWEETNESS_OPTS.map(s => `<option value="${s}" ${s === currentSweetness ? 'selected' : ''}>${s}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        ${buildAddOnsHtml(p, instanceKey)}
-      </div>`;
-  }
-
-  // ── Render the full product card (with all instances) ────────────────
+  // ── Render the product card (Shopee style) ──────────────────────────
   function renderDrinkCard(p) {
     const isAvail = p.available !== false;
-    const instances = getProductInstances(p.id);
-    const qty = instances.length;
+    const qty = getProductQty(p.id);
     const hasQty = qty > 0;
 
     const div = document.createElement('div');
@@ -264,12 +182,32 @@ function buildProductList() {
       ? `<img src="${p.image}" alt="${p.name}" class="product-img" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'product-img-fallback\\'>🍵</span>'" />`
       : `<span class="product-img-fallback">🍵</span>`;
 
-    const instancePanelsHtml = instances.map((key, idx) =>
-      renderInstancePanel(p, key, idx, instances.length)
-    ).join('');
+    let actionHtml = '';
+    if (!isAvail) {
+      actionHtml = `<span class="sold-out-badge">Sold Out</span>`;
+    } else if (qty === 0) {
+      actionHtml = `
+        <div class="product-action-box">
+          <button type="button" class="btn-add-to-cart" onclick="window.openCustomizationModal('${p.id}')">
+            ＋ Add
+          </button>
+        </div>
+      `;
+    } else {
+      actionHtml = `
+        <div class="in-cart-indicator-group">
+          <button type="button" class="in-cart-badge-btn" onclick="window.openCartDrawer()" title="View in Cart">
+            🛒 ${qty} in cart
+          </button>
+          <button type="button" class="btn-add-another-pill" onclick="window.openCustomizationModal('${p.id}')" title="Add another cup of this drink">
+            ＋
+          </button>
+        </div>
+      `;
+    }
 
     div.innerHTML = `
-      <div class="product-card-inner">
+      <div class="product-card-inner" ${isAvail ? `onclick="if (!event.target.closest('button')) window.openCustomizationModal('${p.id}')" style="cursor:pointer;"` : ''}>
         <div class="product-img-wrap">${thumbHtml}</div>
         <div class="product-details">
           <div class="product-name">
@@ -279,24 +217,9 @@ function buildProductList() {
           ${p.description ? `<div class="product-desc">${p.description}</div>` : ''}
           <div class="product-price-row">
             <div class="product-price">₱${(p.price || 0).toLocaleString()}</div>
-            ${isAvail ? `
-            <div class="qty-control">
-              <button class="qty-btn" id="btn-minus-${p.id}" onclick="removeDrinkInstance(getLastInstance('${p.id}'))" ${qty === 0 ? 'disabled' : ''} aria-label="Remove a cup">−</button>
-              <span class="qty-display" id="qty-${p.id}">${qty}</span>
-              <button class="qty-btn" id="btn-plus-${p.id}" onclick="addDrinkInstance('${p.id}')" aria-label="Add a cup">+</button>
-            </div>` : `<span class="sold-out-badge">Sold Out</span>`}
+            ${actionHtml}
           </div>
         </div>
-      </div>
-
-      <div class="product-options ${hasQty ? '' : 'hidden'}" id="opts-${p.id}">
-        <div id="instances-${p.id}">
-          ${instancePanelsHtml}
-        </div>
-        ${isAvail && hasQty ? `
-        <button type="button" class="add-another-cup-btn" onclick="addDrinkInstance('${p.id}')">
-          ＋ Add Another Cup
-        </button>` : ''}
       </div>
     `;
 
@@ -336,148 +259,531 @@ function buildProductList() {
   }
 }
 
-// ── Per-Instance Controls ────────────────────────────────────────────
-
-/** Get the last added instance key for a product (for the − button) */
-window.getLastInstance = function (productId) {
-  const instances = getProductInstances(productId);
-  return instances.length > 0 ? instances[instances.length - 1] : null;
+// ── Shopee-Style Drink Customization Modal Logic ──────────────────────
+let currentCustomizing = {
+  productId: null,
+  editingInstanceKey: null,
+  matcha: null,
+  sweetness: '100%',
+  addOns: [],
+  qty: 1,
 };
 
-/** Add a new cup instance for a product */
-window.addDrinkInstance = function (productId) {
-  const existing = getProductInstances(productId);
-  // Copy last instance's settings as defaults
-  const last = existing.length > 0 ? state.items[existing[existing.length - 1]] : null;
-  const n = existing.length; // new index
-  const instanceKey = `${productId}__${n}`;
+window.openCustomizationModal = function (productId, instanceKeyToEdit = null) {
+  const product = products.find(p => p.id === productId);
+  if (!product || product.available === false) return;
 
-  state.items[instanceKey] = {
-    productId,
-    instanceIndex: n,
-    matcha: last?.matcha || (matchaChoices[0] || 'Classic'),
-    sweetness: last?.sweetness || '100%',
-    addOns: [],  // new cup starts with no add-ons
-  };
+  const isHojicha = (product.category === 'hojicha') || (product.name && product.name.toLowerCase().includes('hojicha'));
+  const activeAddOnsList = Object.values(addOns).filter(a => a.available !== false);
 
-  // Rebuild the whole card so instance panels & buttons are in sync
-  _rebuildProductCard(productId);
-  updateSummary();
-};
+  if (instanceKeyToEdit && state.items[instanceKeyToEdit]) {
+    const inst = state.items[instanceKeyToEdit];
+    currentCustomizing = {
+      productId,
+      editingInstanceKey: instanceKeyToEdit,
+      matcha: inst.matcha || (matchaChoices[0] || 'Classic'),
+      sweetness: inst.sweetness || '100%',
+      addOns: JSON.parse(JSON.stringify(inst.addOns || [])),
+      qty: inst.qty || 1,
+    };
+  } else {
+    currentCustomizing = {
+      productId,
+      editingInstanceKey: null,
+      matcha: product.hasMatcha ? (matchaChoices[0] || 'Classic') : null,
+      sweetness: '100%',
+      addOns: [],
+      qty: 1,
+    };
+  }
 
-/** Remove a specific cup instance */
-window.removeDrinkInstance = function (instanceKey) {
-  if (!instanceKey || !state.items[instanceKey]) return;
-  const productId = state.items[instanceKey].productId;
-  delete state.items[instanceKey];
+  // Set modal header
+  if ($('custom-modal-title')) $('custom-modal-title').textContent = (instanceKeyToEdit ? 'Edit: ' : '') + product.name;
+  const imgWrap = $('custom-modal-img-wrap');
+  if (imgWrap) {
+    imgWrap.innerHTML = product.image
+      ? `<img src="${product.image}" alt="${product.name}" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'product-img-fallback\\'>🍵</span>'" />`
+      : `<span class="product-img-fallback">🍵</span>`;
+  }
 
-  // Re-index remaining instances so keys stay sequential
-  const remaining = getProductInstances(productId);
-  const reindexed = {};
-  remaining.forEach((key, newIdx) => {
-    const data = state.items[key];
-    const newKey = `${productId}__${newIdx}`;
-    reindexed[newKey] = { ...data, instanceIndex: newIdx };
-    delete state.items[key];
+  // 1. Matcha Cultivars (only if product has matcha)
+  const matchaSec = $('custom-matcha-section');
+  const matchaChips = $('custom-matcha-chips');
+  if (product.hasMatcha && matchaChoices.length > 0) {
+    if (matchaSec) matchaSec.style.display = '';
+    if (matchaChips) {
+      matchaChips.innerHTML = matchaChoices.map(c => `
+        <button type="button" class="custom-choice-chip ${c === currentCustomizing.matcha ? 'active' : ''}"
+          onclick="window.selectCustomMatcha('${c.replace(/'/g, "\\'")}')">
+          🍵 ${c}
+        </button>
+      `).join('');
+    }
+  } else {
+    if (matchaSec) matchaSec.style.display = 'none';
+  }
+
+  // 2. Sweetness Level (0%, 25%, 50%, 75%, 100%)
+  const sweetnessBtns = $('custom-sweetness-buttons');
+  if (sweetnessBtns) {
+    sweetnessBtns.innerHTML = SWEETNESS_OPTS.map(s => `
+      <button type="button" class="sweetness-chip ${s === currentCustomizing.sweetness ? 'active' : ''}"
+        onclick="window.selectCustomSweetness('${s}')">
+        ${s}
+      </button>
+    `).join('');
+  }
+  if ($('custom-sweetness-selected')) $('custom-sweetness-selected').textContent = `${currentCustomizing.sweetness} Sweet`;
+
+  // 3. Add-ons
+  const filteredAddOns = activeAddOnsList.filter(a => {
+    if (isHojicha) {
+      if (a.id === 'extra-shot') return false;
+      if (a.id !== 'extra-matcha-gram' && a.name.toLowerCase().includes('matcha')) return false;
+    } else {
+      if (a.name.toLowerCase().includes('hojicha')) return false;
+    }
+    return true;
   });
-  Object.assign(state.items, reindexed);
 
-  _rebuildProductCard(productId);
-  updateSummary();
+  const addonsSec = $('custom-addons-section');
+  const addonsList = $('custom-addons-list');
+  if (filteredAddOns.length > 0) {
+    if (addonsSec) addonsSec.style.display = '';
+    if (addonsList) {
+      addonsList.innerHTML = filteredAddOns.map(a => {
+        const isQty = a.type === 'quantity' || a.id.includes('gram') ||
+          (a.name && a.name.toLowerCase().includes('per gram')) ||
+          (a.name && a.name.toLowerCase().includes('matcha'));
+        const existing = currentCustomizing.addOns.find(item => item.id === a.id);
+        const currentGramQty = existing ? (existing.qty || 1) : 0;
+        const isChecked = Boolean(existing);
+        const displayName = (isHojicha && a.id === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : a.name;
+
+        if (isQty) {
+          return `
+            <div class="custom-addon-item ${currentGramQty > 0 ? 'selected' : ''}" id="custom-addon-${a.id}">
+              <div class="custom-addon-info">
+                <span class="custom-addon-name">${displayName}</span>
+                <span class="custom-addon-price">+₱${a.price}/g</span>
+              </div>
+              <div class="custom-addon-stepper">
+                <button type="button" class="custom-addon-stepper-btn" onclick="window.stepCustomAddOnQty('${a.id}', -1)" ${currentGramQty === 0 ? 'disabled' : ''}>−</button>
+                <span class="custom-addon-stepper-qty" id="custom-addon-qty-${a.id}">${currentGramQty}g</span>
+                <button type="button" class="custom-addon-stepper-btn" onclick="window.stepCustomAddOnQty('${a.id}', 1)">+</button>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <label class="custom-addon-item ${isChecked ? 'selected' : ''}" id="custom-addon-${a.id}">
+            <div class="custom-addon-info">
+              <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="window.toggleCustomAddOn('${a.id}')" />
+              <span class="custom-addon-name">${displayName}</span>
+            </div>
+            <span class="custom-addon-price">+₱${a.price}</span>
+          </label>
+        `;
+      }).join('');
+    }
+  } else {
+    if (addonsSec) addonsSec.style.display = 'none';
+  }
+
+  // 4. Quantity Stepper
+  const qtySec = $('custom-qty-section');
+  if (qtySec) {
+    qtySec.style.display = 'flex';
+  }
+  if ($('custom-qty-value')) $('custom-qty-value').textContent = currentCustomizing.qty;
+  if ($('custom-qty-minus')) $('custom-qty-minus').disabled = currentCustomizing.qty <= 1;
+
+  // Submit button text
+  if ($('custom-submit-text')) {
+    $('custom-submit-text').textContent = instanceKeyToEdit ? 'Update Cart' : 'Add to Cart';
+  }
+
+  updateCustomModalPrice();
+
+  // Show modal
+  $('customization-backdrop')?.classList.remove('hidden');
+  $('customization-modal')?.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
 };
 
-/** Re-render just the product card in place (avoids full buildProductList rebuild) */
-function _rebuildProductCard(productId) {
+window.closeCustomizationModal = function () {
+  $('customization-backdrop')?.classList.add('hidden');
+  $('customization-modal')?.classList.add('hidden');
+  document.body.style.overflow = '';
+};
+
+window.selectCustomMatcha = function (choice) {
+  currentCustomizing.matcha = choice;
+  document.querySelectorAll('#custom-matcha-chips .custom-choice-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(choice));
+  });
+  updateCustomModalPrice();
+};
+
+window.selectCustomSweetness = function (level) {
+  currentCustomizing.sweetness = level;
+  document.querySelectorAll('#custom-sweetness-buttons .sweetness-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.trim() === level);
+  });
+  if ($('custom-sweetness-selected')) $('custom-sweetness-selected').textContent = `${level} Sweet`;
+};
+
+window.toggleCustomAddOn = function (addOnId) {
+  const addOn = addOns[addOnId];
+  if (!addOn) return;
+  const product = products.find(p => p.id === currentCustomizing.productId);
+  const isHojicha = (product?.category === 'hojicha') || (product?.name && product.name.toLowerCase().includes('hojicha'));
+  const displayName = (isHojicha && addOnId === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : addOn.name;
+
+  const idx = currentCustomizing.addOns.findIndex(a => a.id === addOnId);
+  const itemEl = $(`custom-addon-${addOnId}`);
+
+  if (idx >= 0) {
+    currentCustomizing.addOns.splice(idx, 1);
+    itemEl?.classList.remove('selected');
+  } else {
+    currentCustomizing.addOns.push({
+      id: addOn.id,
+      name: displayName,
+      price: addOn.price,
+      qty: 1,
+      unit: addOn.unit || '',
+    });
+    itemEl?.classList.add('selected');
+  }
+
+  updateCustomModalPrice();
+};
+
+window.stepCustomAddOnQty = function (addOnId, delta) {
+  const addOn = addOns[addOnId];
+  if (!addOn) return;
+  const product = products.find(p => p.id === currentCustomizing.productId);
+  const isHojicha = (product?.category === 'hojicha') || (product?.name && product.name.toLowerCase().includes('hojicha'));
+  const displayName = (isHojicha && addOnId === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : addOn.name;
+
+  const existing = currentCustomizing.addOns.find(a => a.id === addOnId);
+  const curQty = existing ? (existing.qty || 1) : 0;
+  const newQty = Math.max(0, curQty + delta);
+
+  if (newQty === 0) {
+    currentCustomizing.addOns = currentCustomizing.addOns.filter(a => a.id !== addOnId);
+  } else if (existing) {
+    existing.qty = newQty;
+  } else {
+    currentCustomizing.addOns.push({
+      id: addOn.id,
+      name: displayName,
+      price: addOn.price,
+      qty: newQty,
+      unit: addOn.unit || 'g',
+    });
+  }
+
+  const itemEl = $(`custom-addon-${addOnId}`);
+  if (itemEl) {
+    itemEl.classList.toggle('selected', newQty > 0);
+    const decBtn = itemEl.querySelector('.custom-addon-stepper-btn');
+    if (decBtn) decBtn.disabled = newQty === 0;
+  }
+  const qtyEl = $(`custom-addon-qty-${addOnId}`);
+  if (qtyEl) qtyEl.textContent = `${newQty}g`;
+
+  updateCustomModalPrice();
+};
+
+window.stepCustomQty = function (delta) {
+  currentCustomizing.qty = Math.max(1, currentCustomizing.qty + delta);
+  if ($('custom-qty-value')) $('custom-qty-value').textContent = currentCustomizing.qty;
+  if ($('custom-qty-minus')) $('custom-qty-minus').disabled = currentCustomizing.qty <= 1;
+  updateCustomModalPrice();
+};
+
+function updateCustomModalPrice() {
+  const product = products.find(p => p.id === currentCustomizing.productId) || { price: 0 };
+  const addOnTotal = (currentCustomizing.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
+  const singleCupTotal = (product.price || 0) + addOnTotal;
+  const grandTotal = singleCupTotal * (currentCustomizing.qty || 1);
+
+  if ($('custom-modal-price')) $('custom-modal-price').textContent = `₱${singleCupTotal.toLocaleString()}`;
+  if ($('custom-submit-price')) $('custom-submit-price').textContent = `₱${grandTotal.toLocaleString()}`;
+}
+
+window.submitCustomization = function () {
+  const { productId, editingInstanceKey, matcha, sweetness, addOns, qty } = currentCustomizing;
   const product = products.find(p => p.id === productId);
   if (!product) return;
 
-  const activeAddOnsList = Object.values(addOns).filter(a => a.available !== false);
+  const targetKey = getVariationKey(productId, matcha, sweetness, addOns);
+  const chosenQty = Math.max(1, qty || 1);
 
-  // We need to call renderDrinkCard but it's scoped inside buildProductList.
-  // Instead, rebuild via buildProductList which will re-render everything.
+  if (editingInstanceKey) {
+    if (editingInstanceKey === targetKey) {
+      // Same options: update fields and quantity
+      state.items[targetKey] = {
+        productId,
+        matcha,
+        sweetness,
+        addOns: JSON.parse(JSON.stringify(addOns)),
+        qty: chosenQty,
+      };
+    } else {
+      // Options changed: remove old key, add/merge to new targetKey
+      delete state.items[editingInstanceKey];
+      if (state.items[targetKey]) {
+        state.items[targetKey].qty = (state.items[targetKey].qty || 1) + chosenQty;
+      } else {
+        state.items[targetKey] = {
+          productId,
+          matcha,
+          sweetness,
+          addOns: JSON.parse(JSON.stringify(addOns)),
+          qty: chosenQty,
+        };
+      }
+    }
+    showToast('✓ Cart item updated!');
+  } else {
+    // Adding to cart: if already exists with same options, increment quantity
+    if (state.items[targetKey]) {
+      state.items[targetKey].qty = (state.items[targetKey].qty || 1) + chosenQty;
+    } else {
+      state.items[targetKey] = {
+        productId,
+        matcha,
+        sweetness,
+        addOns: JSON.parse(JSON.stringify(addOns)),
+        qty: chosenQty,
+      };
+    }
+    const msg = chosenQty > 1
+      ? `✓ Added ${chosenQty}x ${product.name} to cart! 🛒`
+      : `✓ Added ${product.name} to cart! 🛒`;
+    showToast(msg);
+  }
+
+  const wasEditing = Boolean(editingInstanceKey);
+  window.closeCustomizationModal();
+  updateSummary();
   buildProductList();
-}
+  if (wasEditing) {
+    window.openCartDrawer();
+  } else if (!$('cart-drawer')?.classList.contains('hidden')) {
+    window.renderCartDrawer();
+  }
+};
+
+// ── Shopee-Style Shopping Cart Drawer Logic ───────────────────────────
+window.openCartDrawer = function () {
+  window.renderCartDrawer();
+  $('cart-drawer-backdrop')?.classList.remove('hidden');
+  $('cart-drawer')?.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+};
+
+window.closeCartDrawer = function () {
+  $('cart-drawer-backdrop')?.classList.add('hidden');
+  $('cart-drawer')?.classList.add('hidden');
+  document.body.style.overflow = '';
+};
+
+window.renderCartDrawer = function () {
+  const container = $('cart-drawer-body');
+  if (!container) return;
+
+  const allItems = Object.entries(state.items);
+  const totalQty = getTotalCartQty();
+
+  if ($('cart-drawer-count')) $('cart-drawer-count').textContent = `${totalQty} drink${totalQty === 1 ? '' : 's'}`;
+  if ($('cart-drawer-btn-count')) $('cart-drawer-btn-count').textContent = `(${totalQty})`;
+
+  if (allItems.length === 0) {
+    container.innerHTML = `
+      <div class="cart-empty-state">
+        <div class="cart-empty-icon">🍵</div>
+        <div class="cart-empty-title">Your cart is empty</div>
+        <div class="cart-empty-sub">Explore our handcrafted matcha drinks and add your favorites to get started!</div>
+        <button type="button" class="btn-browse-menu" onclick="window.continueShopping()">Browse Menu</button>
+      </div>
+    `;
+    if ($('cart-drawer-subtotal')) $('cart-drawer-subtotal').textContent = '₱0';
+    const checkoutBtn = $('cart-drawer-checkout-btn');
+    if (checkoutBtn) checkoutBtn.disabled = true;
+    return;
+  }
+
+  const checkoutBtn = $('cart-drawer-checkout-btn');
+  if (checkoutBtn) checkoutBtn.disabled = false;
+
+  let subtotal = 0;
+  const itemsHtml = allItems.map(([variationKey, v]) => {
+    const product = products.find(p => p.id === v.productId) || { name: 'Matcha Drink', price: 0 };
+    const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
+    const unitPrice = (product.price || 0) + addOnTotal;
+    const qty = v.qty || 1;
+    const lineTotal = unitPrice * qty;
+    subtotal += lineTotal;
+
+    let opts = [];
+    if (v.matcha) opts.push(v.matcha);
+    if (v.sweetness) opts.push(`${v.sweetness} sweet`);
+    if (v.addOns && v.addOns.length) {
+      opts.push('+ ' + v.addOns.map(a => {
+        const qtyStr = (a.qty && a.qty > 1) ? ` (${a.qty}${a.unit || 'x'})` : '';
+        const totalPrice = (a.price || 0) * (a.qty || 1);
+        return `${a.name}${qtyStr} (₱${totalPrice})`;
+      }).join(', '));
+    }
+
+    const safeKey = variationKey.replace(/'/g, "\\'");
+
+    const thumbHtml = product.image
+      ? `<img src="${product.image}" alt="${product.name}" class="cart-item-img" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'product-img-fallback\\'>🍵</span>'" />`
+      : `<div class="cart-item-img"><span class="product-img-fallback">🍵</span></div>`;
+
+    return `
+      <div class="cart-item-card" id="cart-item-${variationKey}">
+        <div class="cart-item-top">
+          ${thumbHtml}
+          <div class="cart-item-details">
+            <div class="cart-item-title">${product.name}</div>
+            <div class="cart-item-options-chip">${opts.join(' · ')}</div>
+          </div>
+        </div>
+        <div class="cart-item-bottom">
+          <div class="cart-item-price-block">
+            <div class="cart-item-total-price">₱${lineTotal.toLocaleString()}</div>
+            ${qty > 1 ? `<div class="cart-item-unit-price">₱${unitPrice.toLocaleString()} each</div>` : ''}
+          </div>
+          <div class="cart-item-controls">
+            <div class="cart-item-stepper">
+              <button type="button" class="cart-stepper-btn" onclick="window.changeCartItemQty('${safeKey}', -1)" aria-label="Decrease quantity">−</button>
+              <span class="cart-stepper-qty">${qty}</span>
+              <button type="button" class="cart-stepper-btn" onclick="window.changeCartItemQty('${safeKey}', 1)" aria-label="Increase quantity">+</button>
+            </div>
+            <div class="cart-item-actions">
+              <button type="button" class="cart-action-btn" onclick="window.editCartItem('${safeKey}')" title="Edit customization">
+                ✏️ Edit
+              </button>
+              <button type="button" class="cart-action-btn btn-remove" onclick="window.removeCartItem('${safeKey}')" title="Remove from cart">
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const addMoreBtn = `
+    <button type="button" class="cart-add-more-row" onclick="window.continueShopping()">
+      <span>🍵</span> <span>＋ Add more drinks from menu</span>
+    </button>
+  `;
+
+  container.innerHTML = itemsHtml + addMoreBtn;
+  if ($('cart-drawer-subtotal')) $('cart-drawer-subtotal').textContent = `₱${subtotal.toLocaleString()}`;
+};
+
+window.continueShopping = function () {
+  window.closeCartDrawer();
+  window.nextWizardStep(1);
+  const menuEl = $('menu-categories-nav') || $('product-list');
+  if (menuEl) {
+    menuEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+};
+
+window.changeCartItemQty = function (variationKey, delta) {
+  if (!variationKey || !state.items[variationKey]) return;
+  const item = state.items[variationKey];
+  const newQty = (item.qty || 1) + delta;
+
+  if (newQty <= 0) {
+    const product = products.find(p => p.id === item.productId);
+    const name = product ? product.name : 'item';
+    if (confirm(`Remove ${name} from your cart?`)) {
+      delete state.items[variationKey];
+      showToast('Item removed from cart');
+    }
+  } else {
+    item.qty = newQty;
+  }
+
+  updateSummary();
+  buildProductList();
+  window.renderCartDrawer();
+};
+
+window.removeCartItem = function (variationKey) {
+  if (!variationKey || !state.items[variationKey]) return;
+  delete state.items[variationKey];
+  updateSummary();
+  buildProductList();
+  window.renderCartDrawer();
+  showToast('Item removed from cart');
+};
+
+window.editCartItem = function (variationKey) {
+  if (!variationKey || !state.items[variationKey]) return;
+  window.closeCartDrawer();
+  window.openCustomizationModal(state.items[variationKey].productId, variationKey);
+};
+
+window.duplicateDrinkInstance = function (variationKey) {
+  window.changeCartItemQty(variationKey, 1);
+  showToast('✓ Added another cup! 🍵');
+};
+
+window.confirmClearCart = function () {
+  if (Object.keys(state.items).length === 0) return;
+  if (confirm('Are you sure you want to clear your cart?')) {
+    state.items = {};
+    updateSummary();
+    buildProductList();
+    window.renderCartDrawer();
+    showToast('Cart cleared');
+  }
+};
+
+window.checkoutFromCart = function () {
+  if (Object.keys(state.items).length === 0) {
+    showToast('⚠️ Please select at least one drink before checkout.');
+    return;
+  }
+  window.closeCartDrawer();
+  window.nextWizardStep(2);
+};
+
+// ── Backward-Compatible Controls ─────────────────────────────────────
+window.getProductInstances = function (productId) {
+  return Object.keys(state.items).filter(k => state.items[k].productId === productId);
+};
+
+window.getLastInstance = function (productId) {
+  const instances = window.getProductInstances(productId);
+  return instances.length > 0 ? instances[instances.length - 1] : null;
+};
+
+window.addDrinkInstance = function (productId) {
+  window.openCustomizationModal(productId);
+};
+
+window.removeDrinkInstance = function (instanceKey) {
+  window.removeCartItem(instanceKey);
+};
 
 window.updateOption = function (instanceKey, field, value) {
   if (state.items[instanceKey]) {
     state.items[instanceKey][field] = value;
+    updateSummary();
   }
-};
-
-window.toggleDrinkAddOn = function (instanceKey, addOnId) {
-  if (!state.items[instanceKey]) return;
-
-  const addOn = addOns[addOnId];
-  if (!addOn) return;
-
-  const inst = state.items[instanceKey];
-  const product = products.find(p => p.id === inst.productId);
-  const isHojicha = product?.category === 'hojicha';
-  const displayName = (isHojicha && addOnId === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : addOn.name;
-
-  const currentAddOns = inst.addOns || [];
-  const exists = currentAddOns.some(a => a.id === addOnId);
-
-  if (exists) {
-    inst.addOns = currentAddOns.filter(a => a.id !== addOnId);
-  } else {
-    inst.addOns = [
-      ...currentAddOns,
-      { id: addOn.id, name: displayName, price: addOn.price, qty: 1, unit: addOn.unit || '' }
-    ];
-  }
-
-  updateSummary();
-};
-
-window.changeDrinkAddOnQty = function (instanceKey, addOnId, delta) {
-  if (!state.items[instanceKey]) return;
-
-  const addOn = addOns[addOnId];
-  if (!addOn) return;
-
-  const inst = state.items[instanceKey];
-  const product = products.find(p => p.id === inst.productId);
-  const isHojicha = product?.category === 'hojicha';
-  const displayName = (isHojicha && addOnId === 'extra-matcha-gram') ? 'Extra Hojicha per gram' : addOn.name;
-
-  const currentAddOns = inst.addOns || [];
-  const existing = currentAddOns.find(a => a.id === addOnId);
-  const currentQty = existing ? (existing.qty || 1) : 0;
-  const newQty = Math.max(0, currentQty + delta);
-
-  if (newQty === 0) {
-    inst.addOns = currentAddOns.filter(a => a.id !== addOnId);
-  } else if (existing) {
-    existing.qty = newQty;
-  } else {
-    inst.addOns = [
-      ...currentAddOns,
-      { id: addOn.id, name: displayName, price: addOn.price, qty: newQty, unit: addOn.unit || 'g' }
-    ];
-  }
-
-  // Update UI elements for stepper pill
-  const qtyDisplay = $(`addon-qty-${instanceKey}-${addOnId}`);
-  if (qtyDisplay) {
-    const unit = addOn.unit || 'g';
-    qtyDisplay.textContent = `${newQty}${unit}`;
-  }
-
-  const pillCtrl = $(`addon-ctrl-${instanceKey}-${addOnId}`);
-  if (pillCtrl) {
-    if (newQty > 0) {
-      pillCtrl.classList.add('is-active');
-    } else {
-      pillCtrl.classList.remove('is-active');
-    }
-    const decBtn = pillCtrl.querySelector('.addon-stepper-btn');
-    if (decBtn) {
-      decBtn.disabled = newQty === 0;
-    }
-  }
-
-  updateSummary();
 };
 
 // ── Delivery Location Map Picker (Leaflet) ───────────────────────────
@@ -818,29 +1124,42 @@ function setupDeliveryToggle() {
   if (checked) applyDeliveryType(checked.value);
 }
 
-// ── Summary & Mobile Sticky Cart ─────────────────────────────────────
+// ── Summary & Shopee Cart Sync ─────────────────────────────────────
 function updateSummary() {
   const summarySection = $('order-summary');
-  // Collect all instances (each is qty:1)
-  const allInstances = Object.entries(state.items);
-
+  const allItems = Object.entries(state.items);
   const stickyCart = $('mobile-sticky-cart');
-  const totalQty = allInstances.length;
+  const totalQty = getTotalCartQty();
 
-  if (totalQty === 0) {
-    summarySection?.classList.add('hidden');
-    stickyCart?.classList.add('hidden');
-    return;
+  // 1. Update Header Cart Badge
+  const headerBadge = $('header-cart-badge');
+  if (headerBadge) {
+    if (totalQty > 0) {
+      headerBadge.textContent = totalQty;
+      headerBadge.classList.remove('hidden');
+      headerBadge.classList.remove('pop');
+      void headerBadge.offsetWidth; // trigger reflow for animation
+      headerBadge.classList.add('pop');
+    } else {
+      headerBadge.classList.add('hidden');
+    }
   }
 
-  summarySection?.classList.remove('hidden');
+  // 2. Update Step 1 Checkout Button Pill
+  const step1Pill = $('step-1-count-pill');
+  if (step1Pill) {
+    step1Pill.textContent = `${totalQty} drink${totalQty === 1 ? '' : 's'}`;
+  }
 
+  // Calculate Subtotal and build Summary Rows
   let subtotal = 0;
-  const itemRows = allInstances.map(([instanceKey, v]) => {
+  const itemRows = allItems.map(([variationKey, v]) => {
     const product = products.find(p => p.id === v.productId) || { name: 'Item', price: 0 };
     const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
     const unitPrice = (product.price || 0) + addOnTotal;
-    subtotal += unitPrice;
+    const qty = v.qty || 1;
+    const lineTotal = unitPrice * qty;
+    subtotal += lineTotal;
 
     let opts = [];
     if (v.matcha) opts.push(v.matcha);
@@ -853,21 +1172,15 @@ function updateSummary() {
       }).join(', '));
     }
 
-    // Cup label: only show "Cup N" if product has multiple instances
-    const productInstances = getProductInstances(v.productId);
-    const cupLabel = productInstances.length > 1
-      ? ` <span style="font-size:11px;opacity:0.6">(Cup ${v.instanceIndex + 1})</span>`
-      : '';
-
     return `
       <tr>
         <td>
-          <div class="summary-item-name">${product.name}${cupLabel}</div>
+          <div class="summary-item-name">${product.name}${qty > 1 ? ` <span style="font-weight:700;color:var(--green-700);font-size:12px;">(×${qty})</span>` : ''}</div>
           ${opts.length ? `<div class="summary-item-detail">${opts.join(' · ')}</div>` : ''}
         </td>
-        <td style="text-align:center">1</td>
+        <td style="text-align:center">${qty}</td>
         <td style="text-align:right">₱${unitPrice.toLocaleString()}</td>
-        <td style="text-align:right">₱${unitPrice.toLocaleString()}</td>
+        <td style="text-align:right">₱${lineTotal.toLocaleString()}</td>
       </tr>
     `;
   }).join('');
@@ -876,6 +1189,23 @@ function updateSummary() {
   const deliveryFee = isDelivery ? DELIVERY_FEE : 0;
   const total = subtotal + deliveryFee;
   const hasPinned = !!($('delivery-lat')?.value);
+
+  // 3. Update Step 2 Quick Strip
+  if ($('strip-cart-count')) $('strip-cart-count').textContent = `${totalQty} drink${totalQty === 1 ? '' : 's'}`;
+  if ($('strip-cart-sub')) $('strip-cart-sub').textContent = `Subtotal: ₱${subtotal.toLocaleString()}`;
+
+  // 4. Update Cart Drawer Counts & Subtotal
+  if ($('cart-drawer-count')) $('cart-drawer-count').textContent = `${totalQty} drink${totalQty === 1 ? '' : 's'}`;
+  if ($('cart-drawer-subtotal')) $('cart-drawer-subtotal').textContent = `₱${subtotal.toLocaleString()}`;
+  if ($('cart-drawer-btn-count')) $('cart-drawer-btn-count').textContent = `(${totalQty})`;
+
+  // 5. Update Step 3 Summary Table
+  if (totalQty === 0) {
+    summarySection?.classList.add('hidden');
+    stickyCart?.classList.add('hidden');
+  } else {
+    summarySection?.classList.remove('hidden');
+  }
 
   if ($('summary-items')) $('summary-items').innerHTML = itemRows;
   if ($('summary-subtotal')) $('summary-subtotal').textContent = `\u20b1${subtotal.toLocaleString()}`;
@@ -887,30 +1217,33 @@ function updateSummary() {
   }
   if ($('summary-total')) $('summary-total').textContent = `\u20b1${total.toLocaleString()}`;
 
-  // Update sticky cart on mobile
-  if (stickyCart && totalQty > 0) {
-    stickyCart.classList.remove('hidden');
-    if ($('sticky-cart-count')) $('sticky-cart-count').textContent = `${totalQty} drink${totalQty > 1 ? 's' : ''}`;
-    // Show final total as main price
-    if ($('sticky-cart-total')) $('sticky-cart-total').textContent = `\u20b1${total.toLocaleString()}`;
-    // Show shipping fee separately when delivery is selected and pin is placed
-    const shippingEl = $('sticky-cart-shipping');
-    if (shippingEl) {
-      if (isDelivery && isOutsideDeliveryLimit) {
-        shippingEl.textContent = '(Out of Range)';
-        shippingEl.style.color = '#dc2626';
-        shippingEl.style.display = '';
-      } else if (isDelivery && hasPinned && deliveryFee > 0) {
-        shippingEl.textContent = `(\u20b1${subtotal.toLocaleString()} + \u20b1${deliveryFee.toLocaleString()} shipping)`;
-        shippingEl.style.color = 'var(--text-soft)';
-        shippingEl.style.display = '';
-      } else if (isDelivery && !hasPinned) {
-        shippingEl.textContent = '+ shipping (pin your location)';
-        shippingEl.style.color = 'var(--green-600)';
-        shippingEl.style.display = '';
-      } else {
-        shippingEl.style.display = 'none';
+  // 6. Update Sticky Cart on Mobile & Desktop
+  if (stickyCart) {
+    if (totalQty > 0) {
+      stickyCart.classList.remove('hidden');
+      if ($('sticky-cart-count')) $('sticky-cart-count').textContent = `${totalQty} drink${totalQty > 1 ? 's' : ''}`;
+      if ($('sticky-cart-total')) $('sticky-cart-total').textContent = `\u20b1${total.toLocaleString()}`;
+
+      const shippingEl = $('sticky-cart-shipping');
+      if (shippingEl) {
+        if (isDelivery && isOutsideDeliveryLimit) {
+          shippingEl.textContent = '(Out of Range)';
+          shippingEl.style.color = '#dc2626';
+          shippingEl.style.display = '';
+        } else if (isDelivery && hasPinned && deliveryFee > 0) {
+          shippingEl.textContent = `(\u20b1${subtotal.toLocaleString()} + \u20b1${deliveryFee.toLocaleString()} shipping)`;
+          shippingEl.style.color = 'var(--text-soft)';
+          shippingEl.style.display = '';
+        } else if (isDelivery && !hasPinned) {
+          shippingEl.textContent = '+ shipping (pin your location)';
+          shippingEl.style.color = 'var(--green-600)';
+          shippingEl.style.display = '';
+        } else {
+          shippingEl.style.display = 'none';
+        }
       }
+    } else {
+      stickyCart.classList.add('hidden');
     }
   }
 
@@ -920,11 +1253,11 @@ function updateSummary() {
     if (isDelivery && isOutsideDeliveryLimit) {
       checkoutBtn.disabled = true;
       checkoutBtn.textContent = 'Out of Delivery Range';
-      checkoutBtn.style.background = '#d1d5db'; // gray out
+      checkoutBtn.style.background = '#d1d5db';
     } else {
       checkoutBtn.disabled = false;
       checkoutBtn.textContent = '🍵 Place Order';
-      checkoutBtn.style.background = ''; // restore normal styling
+      checkoutBtn.style.background = '';
     }
   }
 
@@ -1277,21 +1610,22 @@ async function placeOrder() {
   try {
     let subtotal = 0;
     const selectedItems = Object.entries(state.items)
-      .map(([instanceKey, v]) => {
+      .map(([variationKey, v]) => {
         const product = products.find(p => p.id === v.productId) || { name: 'Custom Drink', price: 0 };
         const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
         const unitPrice = (product.price || 0) + addOnTotal;
-        subtotal += unitPrice;
+        const qty = v.qty || 1;
+        const lineTotal = unitPrice * qty;
+        subtotal += lineTotal;
 
         return {
-          instanceKey,
+          variationKey,
           id: product.id,
           name: product.name,
           basePrice: product.price,
           unitPrice,
-          lineTotal: unitPrice,
-          qty: 1,
-          cupIndex: v.instanceIndex,
+          qty,
+          lineTotal,
           matcha: v.matcha || null,
           sweetness: v.sweetness || null,
           addOns: v.addOns || [],
@@ -1864,6 +2198,22 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDeliveryToggle();
   listenToMenu();
   checkActiveOrder();
+  updateSummary(); // sync cart badge and totals on initial load
+
+  $('header-cart-btn')?.addEventListener('click', () => {
+    window.openCartDrawer();
+  });
+
+  // ESC key dismisses modals
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (!$('customization-modal')?.classList.contains('hidden')) {
+        window.closeCustomizationModal();
+      } else if (!$('cart-drawer')?.classList.contains('hidden')) {
+        window.closeCartDrawer();
+      }
+    }
+  });
 
   $('place-order-btn').addEventListener('click', placeOrder);
 
@@ -1884,7 +2234,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Apply date/time scheduling rules (weekdays = advance only, Fri–Sun = same-day allowed)
   setupDateTimeRules();
-
 
   // Payment Method toggles
   document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
