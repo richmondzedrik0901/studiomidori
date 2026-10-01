@@ -750,22 +750,26 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 /* ── Place Order Button ── */
 .place-order-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   width: 100%;
-  padding: 18px;
+  padding: 16px 20px;
   background: linear-gradient(135deg, var(--green-500), var(--green-600));
   color: #fff;
   font-family: 'Nunito', sans-serif;
-  font-size: 18px;
+  font-size: 16.5px;
   font-weight: 900;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  letter-spacing: 0.5px;
   border: none;
   border-radius: var(--radius-xl);
   cursor: pointer;
   box-shadow: var(--shadow-md), 0 4px 20px rgba(61, 90, 30, 0.35);
   transition: all var(--transition);
   margin-top: 8px;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .place-order-btn:hover {
@@ -1804,13 +1808,50 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   margin-top: 20px;
 }
 
+#step-1-next-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 20px;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+}
+
+.step-btn-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .step-count-pill {
-  background: rgba(255, 255, 255, 0.25);
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 3px 10px;
   border-radius: var(--radius-full);
   font-size: 12px;
-  margin-left: 6px;
   font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+@media (max-width: 420px) {
+  #step-1-next-btn {
+    font-size: 14.5px;
+    padding: 14px 14px;
+    gap: 8px;
+  }
+  .step-count-pill {
+    font-size: 11.5px;
+    padding: 2px 8px;
+  }
 }
 
 /* ── Step 2 Cart Quick Strip ── */
