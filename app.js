@@ -1504,6 +1504,49 @@ function setupDateTimeRules() {
   setInterval(applyTimeMin, 60000);
 }
 
+// ── Mobile Number Input Setup (Strict digits & formats) ──────────────
+function setupMobileInput() {
+  const input = $('mobile-number');
+  if (!input) return;
+
+  // Disallow typing letters or non-numeric symbols
+  input.addEventListener('keydown', (e) => {
+    // Allow control keys (Backspace, Tab, Enter, Arrows, Delete, Copy/Paste)
+    if (
+      ['Backspace', 'Tab', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Delete', 'Home', 'End'].includes(e.key) ||
+      (e.ctrlKey || e.metaKey)
+    ) {
+      return;
+    }
+    // Allow '+' only as the very first character and if not already entered
+    if (e.key === '+') {
+      if (input.selectionStart === 0 && !input.value.includes('+')) {
+        return;
+      }
+      e.preventDefault();
+      return;
+    }
+    // Block any non-digit character
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  });
+
+  // Sanitize on input/paste to strip letters and disallowed characters
+  input.addEventListener('input', (e) => {
+    let val = e.target.value;
+    const hasPlus = val.startsWith('+');
+    val = val.replace(/\D/g, '');
+    if (hasPlus) val = '+' + val;
+    // Length limit: +639958303155 is 13 chars, 639958303155 is 12, 09958303155 is 11, 9958303155 is 10
+    const maxLen = val.startsWith('+') ? 13 : 12;
+    if (val.length > maxLen) {
+      val = val.slice(0, maxLen);
+    }
+    e.target.value = val;
+  });
+}
+
 // ── Form Validation ──────────────────────────────────────────────────
 function validateForm() {
   const name = $('customer-name').value.trim();
@@ -1514,9 +1557,10 @@ function validateForm() {
   if (!name) { showToast('Please enter your name.'); $('customer-name').focus(); return false; }
   if (!mobile) { showToast('Please enter your mobile number.'); $('mobile-number').focus(); return false; }
 
-  const phMobileRegex = /^(09|\+639|639)\d{9}$/;
+  // Accept formats: 09958303155 (11 digits), +639958303155 (13 chars), 9958303155 (10 digits), 639958303155 (12 digits)
+  const phMobileRegex = /^(\+639|639|09|9)\d{9}$/;
   if (!phMobileRegex.test(mobile)) {
-    showToast('Please enter a valid Philippine mobile number (e.g. 09123456789).');
+    showToast('Please enter a valid mobile number (e.g. 09958303155, +639958303155, or 9958303155).');
     $('mobile-number').focus();
     return false;
   }
@@ -1839,6 +1883,7 @@ function notifyCustomer(orderKey, orderNumber, label) {
 function listenToOrderStatus(orderKey, deliveryType) {
   if (activeStatusUnsubscribe) {
     activeStatusUnsubscribe();
+    activeStatusUnsubscribe = null;
   }
 
   if (!orderKey) {
@@ -1861,6 +1906,11 @@ function listenToOrderStatus(orderKey, deliveryType) {
         badge.textContent = '❌ Cancelled/Deleted';
       }
 
+      const desc = $('customer-status-desc');
+      if (desc) {
+        desc.textContent = 'This order was cancelled or deleted from our system.';
+      }
+
       // Remove from local storage
       try {
         let stored = JSON.parse(localStorage.getItem('midori_active_order') || '[]');
@@ -1868,7 +1918,7 @@ function listenToOrderStatus(orderKey, deliveryType) {
           stored = stored.filter(o => o.key !== orderKey);
           if (stored.length === 0) localStorage.removeItem('midori_active_order');
           else localStorage.setItem('midori_active_order', JSON.stringify(stored));
-        } else if (stored.key === orderKey) {
+        } else if (stored && stored.key === orderKey) {
           localStorage.removeItem('midori_active_order');
         }
       } catch (e) { }
@@ -1876,14 +1926,30 @@ function listenToOrderStatus(orderKey, deliveryType) {
       return;
     }
 
-    updateStatusTracker(status, deliveryType);
+    const orderData = snapshot.val() || {};
+    const status = orderData.status || 'NEW';
+    const currentDeliveryType = orderData.deliveryType || deliveryType || 'pickup';
+
+    // Synchronize live tracker with current status in real-time
+    updateStatusTracker(status, currentDeliveryType);
+
+    // Keep active order in localStorage up to date
+    try {
+      let stored = JSON.parse(localStorage.getItem('midori_active_order') || '[]');
+      if (Array.isArray(stored)) {
+        const item = stored.find(o => o.key === orderKey);
+        if (item) {
+          item.orderData = { ...item.orderData, ...orderData, status };
+          localStorage.setItem('midori_active_order', JSON.stringify(stored));
+        }
+      }
+    } catch (e) { }
 
     if (previousStatus && previousStatus !== status) {
-      const mode = deliveryType === 'delivery' ? 'delivery' : 'pickup';
-      const label = STATUS_CONFIG[mode][status]?.badge || status;
-      // We don't have orderNumber here natively, so we just use a generic 'Update'
-      // or we can just pass the orderKey. The banner listener will have the orderNumber.
-      notifyCustomer(orderKey, '(See Tracker)', label);
+      const mode = currentDeliveryType === 'delivery' ? 'delivery' : 'pickup';
+      const label = (STATUS_CONFIG[mode] && STATUS_CONFIG[mode][status]?.badge) || status;
+      const orderNum = orderData.orderNumber || orderKey;
+      notifyCustomer(orderKey, orderNum, label);
     }
     previousStatus = status;
   }, (err) => {
@@ -2087,7 +2153,7 @@ function checkActiveOrder() {
         onValue(orderRef, (snapshot) => {
           const data = snapshot.exists() ? snapshot.val() : null;
           const status = data ? (data.status || 'NEW') : 'DELETED';
-          if (!data || status === 'COMPLETED' || status === 'CANCELLED') {
+          if (!data || status === 'CANCELLED') {
             const bannerDiv = $(`active-banner-${index}`);
             if (bannerDiv) {
               bannerDiv.style.opacity = '0';
@@ -2112,7 +2178,7 @@ function checkActiveOrder() {
             } catch (e) { }
             return;
           }
-          const deliveryType = active.orderData?.deliveryType || 'pickup';
+          const deliveryType = (data && data.deliveryType) || active.orderData?.deliveryType || 'pickup';
           const mode = deliveryType === 'delivery' ? 'delivery' : 'pickup';
 
           const config = (STATUS_CONFIG[mode] && STATUS_CONFIG[mode][status]) || STATUS_CONFIG[mode].NEW;
@@ -2123,7 +2189,7 @@ function checkActiveOrder() {
 
           // Trigger push notification if status changes (and not on first load)
           if (bannerPreviousStatuses[active.key] && bannerPreviousStatuses[active.key] !== status) {
-            notifyCustomer(active.key, active.orderNumber, config.badge);
+            notifyCustomer(active.key, (data && data.orderNumber) || active.orderNumber, config.badge);
           }
           bannerPreviousStatuses[active.key] = status;
         }, (err) => {
@@ -2194,6 +2260,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
+  setupMobileInput();
   buildProductList();
   setupDeliveryToggle();
   listenToMenu();
@@ -2230,6 +2297,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('new-order-btn').addEventListener('click', () => {
     location.reload();
+  });
+
+  $('back-to-menu-btn')?.addEventListener('click', () => {
+    $('success-screen')?.classList.remove('visible');
+    $('success-screen')?.classList.add('hidden');
+    $('order-form-area')?.classList.remove('hidden');
+    checkActiveOrder();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   // Apply date/time scheduling rules (weekdays = advance only, Fri–Sun = same-day allowed)
