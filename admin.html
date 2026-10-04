@@ -234,6 +234,22 @@
         </div>
       </div>
     </div>
+
+    <!-- Discount Vouchers & Promo Codes -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <div>
+          <div class="admin-card-title">&#x1F39F;&#xFE0F; Discount Vouchers &amp; Promo Codes</div>
+          <div class="admin-card-subtitle">Manage customer discount codes, percentage savings, and delivery promos</div>
+        </div>
+        <button class="admin-primary-btn" onclick="window.openAddVoucherModal()">+ Add New Voucher</button>
+      </div>
+      <div style="padding:16px;">
+        <div id="admin-vouchers-list" class="admin-vouchers-list">
+          <!-- Rendered by admin.js -->
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ══ REPORTS SECTION ══ -->
@@ -503,6 +519,212 @@
           <button type="button" class="btn-primary" onclick="confirmCrop()">Crop &amp; Save</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Add/Edit Voucher Modal ── -->
+  <div class="modal-overlay" id="voucher-modal" role="dialog" aria-modal="true" style="z-index:2500" onclick="if(event.target===this) window.closeVoucherModal()">
+    <div class="modal-sheet voucher-modal-sheet">
+      <div class="modal-drag-bar"></div>
+
+      <!-- Header -->
+      <div class="voucher-modal-header">
+        <div class="voucher-modal-header-left">
+          <div class="voucher-modal-icon-badge" aria-hidden="true">🎟️</div>
+          <div>
+            <div class="voucher-modal-title" id="voucher-modal-title">Add New Voucher</div>
+            <div class="voucher-modal-sub">Set discount rules, minimum spend &amp; validity</div>
+          </div>
+        </div>
+        <button type="button" class="modal-close" onclick="window.closeVoucherModal()" aria-label="Close modal">&#x2715;</button>
+      </div>
+
+      <!-- Form with Scroll Area & Sticky Footer -->
+      <form id="voucher-form" class="voucher-modal-form" onsubmit="event.preventDefault(); window.saveVoucher(event);">
+        <div class="voucher-modal-scroll-area">
+
+          <!-- Section 1: Voucher Code -->
+          <div class="form-group" style="margin-bottom:0">
+            <label for="voucher-code-input">Voucher Code <span class="required">*</span></label>
+            <div class="voucher-code-row">
+              <div class="voucher-code-input-wrap">
+                <span class="voucher-input-prefix" aria-hidden="true">🏷️</span>
+                <input
+                  type="text"
+                  id="voucher-code-input"
+                  placeholder="e.g. MIDORI20"
+                  required
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  spellcheck="false"
+                  oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '')"
+                />
+              </div>
+              <button type="button" class="voucher-suggest-btn" onclick="window.generateRandomVoucherCode()" title="Auto-generate a promo code">
+                ⚡ Suggest
+              </button>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-soft);margin-top:4px;font-weight:600;">
+              Letters, numbers, and hyphens only · Automatically uppercase
+            </div>
+          </div>
+
+          <!-- Section 2: Discount & Minimum Spend -->
+          <div class="voucher-form-card">
+            <div class="voucher-card-title">💰 Discount Configuration</div>
+
+            <div class="voucher-grid-2col">
+              <!-- Discount Type -->
+              <div class="form-group" style="margin-bottom:0">
+                <label for="voucher-type-input">Discount Type <span class="required">*</span></label>
+                <select id="voucher-type-input" onchange="updateVoucherTypeUI()">
+                  <option value="percent">Percentage (%) Off</option>
+                  <option value="fixed">Fixed Amount (₱) Off</option>
+                  <option value="delivery">Free Delivery (100%)</option>
+                </select>
+              </div>
+
+              <!-- Discount Value -->
+              <div class="form-group" id="voucher-value-group" style="margin-bottom:0">
+                <label for="voucher-value-input" id="voucher-value-label">Discount Value (%) <span class="required">*</span></label>
+                <div class="input-affix-wrap">
+                  <input
+                    type="number"
+                    id="voucher-value-input"
+                    placeholder="e.g. 10"
+                    min="1"
+                    max="100"
+                    step="any"
+                    inputmode="decimal"
+                    required
+                  />
+                  <span class="input-affix-badge" id="voucher-value-unit">%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Minimum Spend -->
+            <div class="form-group" style="margin-bottom:0;margin-top:2px;">
+              <label for="voucher-min-spend-input">Minimum Spend Requirement</label>
+              <div class="input-affix-wrap has-prefix">
+                <span class="input-affix-prefix">₱</span>
+                <input
+                  type="number"
+                  id="voucher-min-spend-input"
+                  placeholder="0 (No minimum)"
+                  min="0"
+                  step="any"
+                  inputmode="decimal"
+                  value="0"
+                />
+              </div>
+              <div style="font-size:11.5px;color:var(--text-soft);margin-top:4px;font-weight:600;">
+                Leave as 0 for no minimum purchase requirement
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Description -->
+          <div class="form-group" style="margin-bottom:0">
+            <label for="voucher-desc-input">Promo Description / Customer Hint</label>
+            <input
+              type="text"
+              id="voucher-desc-input"
+              placeholder="e.g. 10% off your entire matcha order"
+              maxlength="100"
+            />
+            <div style="font-size:11.5px;color:var(--text-soft);margin-top:4px;font-weight:600;">
+              Shown to customers in the voucher deals list &amp; applied checkout badge
+            </div>
+          </div>
+
+          <!-- Section 4: Validity & Expiration -->
+          <div class="voucher-form-card">
+            <div class="voucher-card-title">📅 Validity &amp; Expiration</div>
+
+            <!-- Quick Duration Chips -->
+            <div class="validity-chips-row">
+              <button type="button" class="validity-chip" data-days="7" onclick="setQuickValidity(7)">⚡ 7 Days</button>
+              <button type="button" class="validity-chip" data-days="14" onclick="setQuickValidity(14)">14 Days</button>
+              <button type="button" class="validity-chip" data-days="30" onclick="setQuickValidity(30)">30 Days</button>
+              <button type="button" class="validity-chip active" data-days="0" onclick="setQuickValidity(0)">♾️ Never Expires</button>
+            </div>
+
+            <!-- Dual Inputs: Days or Date -->
+            <div class="voucher-grid-2col" style="margin-top:2px;">
+              <div class="form-group" style="margin-bottom:0">
+                <label for="voucher-validity-days" style="font-size:12px;">Days from Today</label>
+                <div class="input-affix-wrap">
+                  <input
+                    type="number"
+                    id="voucher-validity-days"
+                    placeholder="e.g. 7, 14, 30"
+                    min="0"
+                    inputmode="numeric"
+                    oninput="updateValidityPreview()"
+                  />
+                  <span class="input-affix-badge" style="font-size:11px;font-weight:700;">Days</span>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0">
+                <label for="voucher-expiry-date" style="font-size:12px;">Or Specific End Date</label>
+                <input
+                  type="date"
+                  id="voucher-expiry-date"
+                  onchange="onExpiryDateChange()"
+                />
+              </div>
+            </div>
+
+            <!-- Live Expiration Preview Status -->
+            <div class="voucher-validity-banner" id="voucher-validity-preview">
+              📅 Voucher will never expire (no time limit)
+            </div>
+          </div>
+
+          <!-- Section 5: Active Immediately Toggle Switch -->
+          <label class="voucher-switch-card" for="voucher-active-input">
+            <div class="voucher-switch-info">
+              <div class="voucher-switch-title">
+                <span>🟢</span>
+                <span>Active Immediately</span>
+              </div>
+              <div class="voucher-switch-desc">
+                Customers can apply this voucher code right after saving
+              </div>
+            </div>
+            <div class="switch-control">
+              <input type="checkbox" id="voucher-active-input" checked />
+              <span class="switch-slider"></span>
+            </div>
+          </label>
+
+          <!-- Section 6: Limit 1 Use Per Customer Switch -->
+          <label class="voucher-switch-card" for="voucher-limit-per-customer">
+            <div class="voucher-switch-info">
+              <div class="voucher-switch-title">
+                <span>🛡️</span>
+                <span>Limit 1 Use Per Customer</span>
+              </div>
+              <div class="voucher-switch-desc">
+                Prevents the same customer (phone number or device) from reusing this voucher
+              </div>
+            </div>
+            <div class="switch-control">
+              <input type="checkbox" id="voucher-limit-per-customer" checked />
+              <span class="switch-slider"></span>
+            </div>
+          </label>
+
+        </div>
+
+        <!-- Sticky Footer Actions -->
+        <div class="voucher-modal-actions modal-form-actions">
+          <button type="button" class="btn-secondary" onclick="window.closeVoucherModal()">Cancel</button>
+          <button type="submit" class="btn-primary" id="save-voucher-btn">Save Voucher</button>
+        </div>
+      </form>
     </div>
   </div>
 

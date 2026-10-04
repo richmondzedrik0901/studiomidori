@@ -79,6 +79,7 @@ let adminMatchaChoices      = [];    // ['Classic', ...]
 let adminAddOns             = {};    // { [id]: addOnData }
 let adminBlackoutDates      = [];    // ['YYYY-MM-DD', ...]
 let currentDrinkImageData   = '';    // Base64 or URL for modal preview
+let adminVouchers           = {};    // { [code]: voucherData }
 
 // -- Navigation Section Switcher -------------------------------------------
 window.switchAdminSection = function(section) {
@@ -311,7 +312,10 @@ function renderOrders() {
           </div>
           <div class="order-card-body">
             <div class="order-summary-line">${itemSummary}</div>
-            <div class="order-total-line">₱${(order.total || 0).toLocaleString()}</div>
+            <div class="order-total-line">
+              ₱${(order.total || 0).toLocaleString()}
+              ${(order.discountAmount && order.discountAmount > 0) ? `<span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 7px;border-radius:4px;font-weight:800;margin-left:8px;border:1px solid #bbf7d0;">🎟️ ${order.voucherCode || 'Voucher'} (-₱${order.discountAmount.toLocaleString()})</span>` : ''}
+            </div>
           </div>
         </div>
       `;
@@ -500,6 +504,11 @@ function renderModal(order) {
         <span>Subtotal</span>
         <span>₱${(order.subtotal || 0).toLocaleString()}</span>
       </div>
+      ${(order.discountAmount && order.discountAmount > 0) ? `
+      <div class="modal-total-row" style="color:#15803d; font-weight:700;">
+        <span>Voucher Discount (${order.voucherCode || 'Voucher'})</span>
+        <span>-₱${order.discountAmount.toLocaleString()}</span>
+      </div>` : ''}
       ${order.deliveryFee > 0 ? `
       <div class="modal-total-row">
         <span>Delivery Fee</span>
@@ -696,6 +705,13 @@ function startListeningMenu() {
       maxKmDisplay.textContent = maxKm + ' km';
     }
   });
+
+  // 5. Listen for Vouchers
+  const vouchersRef = ref(db, 'vouchers');
+  onValue(vouchersRef, (snapshot) => {
+    adminVouchers = snapshot.exists() ? snapshot.val() : {};
+    if (window.renderAdminVouchers) window.renderAdminVouchers();
+  });
 }
 
 // ── Settings Handlers ──
@@ -799,6 +815,431 @@ window.removeBlackoutDate = async function(dateStr) {
   } catch (err) {
     console.error('Failed to remove blackout date:', err);
     showToast('Failed to remove. Check connection.');
+  }
+};
+
+// ── Vouchers & Promo Codes Management Module ──
+function getAllAdminVouchers() {
+  const result = {};
+  if (adminVouchers && typeof adminVouchers === 'object') {
+    Object.entries(adminVouchers).forEach(([k, v]) => {
+      if (v && v.code && !v.deleted) {
+        const usedByObj = v.usedBy || {};
+        const count = typeof v.redemptionCount === 'number'
+          ? v.redemptionCount
+          : Object.keys(usedByObj).filter(id => !id.startsWith('dev_')).length;
+
+        result[v.code.toUpperCase()] = {
+          code: v.code.toUpperCase(),
+          type: v.type || 'fixed',
+          value: parseFloat(v.value) || 0,
+          minSpend: parseFloat(v.minSpend) || 0,
+          description: v.description || '',
+          validDays: v.validDays ? parseInt(v.validDays) : null,
+          validUntil: v.validUntil || null,
+          createdAt: v.createdAt || null,
+          active: v.active !== false,
+          limitPerCustomer: v.limitPerCustomer !== false,
+          usedBy: usedByObj,
+          redemptionCount: count
+        };
+      }
+    });
+  }
+  return result;
+}
+
+window.renderAdminVouchers = function() {
+  const container = document.getElementById('admin-vouchers-list');
+  if (!container) return;
+
+  const allV = getAllAdminVouchers();
+  const list = Object.values(allV);
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>No vouchers created yet. Click "+ Add New Voucher" above to add one.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const now = new Date();
+
+  container.innerHTML = list.map(v => {
+    let typeLabel = '';
+    if (v.type === 'percent') typeLabel = `${v.value}% OFF`;
+    else if (v.type === 'fixed') typeLabel = `₱${v.value} OFF`;
+    else if (v.type === 'delivery') typeLabel = 'FREE DELIVERY';
+
+    const minSpendLabel = v.minSpend > 0 ? `Min. spend: ₱${v.minSpend.toLocaleString()}` : 'No min. spend';
+    
+    let validityHtml = '<span style="color:var(--text-soft)">📅 Never expires</span>';
+    let isExpired = false;
+
+    if (v.validUntil) {
+      const expiry = new Date(v.validUntil + 'T23:59:59');
+      const d = new Date(v.validUntil + 'T00:00:00');
+      const dateText = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      if (now > expiry) {
+        isExpired = true;
+        validityHtml = `<span style="color:#b91c1c; font-weight:700;">⌛ Expired on ${dateText}</span>`;
+      } else {
+        const msLeft = expiry - now;
+        const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+        validityHtml = `<span style="color:#047857; font-weight:700;">⏳ Valid until ${dateText} (${daysLeft} day${daysLeft === 1 ? '' : 's'} left)</span>`;
+      }
+    }
+
+    const isActive = v.active !== false && !isExpired;
+    const isPaused = v.active === false && !isExpired;
+
+    let badgeStyle = '';
+    let badgeText = 'Active';
+    if (isExpired) {
+      badgeStyle = 'background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+      badgeText = 'Expired';
+    } else if (isPaused) {
+      badgeStyle = 'background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;';
+      badgeText = 'Paused';
+    } else {
+      badgeStyle = 'background:#dcfce7;color:#166534;border:1px solid #86efac;';
+      badgeText = 'Active';
+    }
+
+    const usedCount = v.redemptionCount || 0;
+    const limitPill = v.limitPerCustomer !== false
+      ? `<span class="admin-voucher-limit-pill" title="Limited to 1 redemption per customer mobile/device">🛡️ 1 use/customer (${usedCount} redeemed)</span>`
+      : `<span class="admin-voucher-limit-pill unlimited" title="Unlimited redemptions per customer">♾️ Unlimited uses (${usedCount} redeemed)</span>`;
+
+    return `
+      <div class="admin-voucher-card ${isActive ? '' : 'inactive'}" id="admin-voucher-${v.code}">
+        <div class="admin-voucher-left">
+          <div class="admin-voucher-code-badge">🎟️ ${v.code}</div>
+          <div class="admin-voucher-details">
+            <div class="admin-voucher-title">${typeLabel} — ${v.description || 'Custom Promotion'}</div>
+            <div class="admin-voucher-sub">
+              <span>${minSpendLabel}</span>
+              &middot; <span>${validityHtml}</span>
+              &middot; ${limitPill}
+            </div>
+          </div>
+        </div>
+        <div class="admin-voucher-actions">
+          <span class="admin-voucher-status-badge" style="${badgeStyle}">
+            ${badgeText}
+          </span>
+          ${usedCount > 0 ? `
+          <button type="button" class="admin-voucher-toggle-btn" onclick="resetVoucherUsage('${v.code}')" title="Reset redemptions so customers can reuse this voucher">
+            🔄 Reset
+          </button>
+          ` : ''}
+          <button type="button" class="admin-voucher-toggle-btn" onclick="toggleVoucherActive('${v.code}', ${v.active !== false})">
+            ${v.active !== false ? '⏸ Pause' : '▶ Activate'}
+          </button>
+          <button type="button" class="admin-voucher-del-btn" onclick="deleteVoucher('${v.code}')" title="Delete voucher">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+};
+
+window.generateRandomVoucherCode = function() {
+  const codeInput = document.getElementById('voucher-code-input');
+  if (!codeInput) return;
+  const prefixes = ['MIDORI', 'MATCHA', 'SPECIAL', 'SAVE', 'VIP', 'WELCOME', 'DEAL'];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const discounts = [10, 15, 20, 25, 50];
+  const val = discounts[Math.floor(Math.random() * discounts.length)];
+  codeInput.value = `${prefix}${val}`;
+  codeInput.dispatchEvent(new Event('input', { bubbles: true }));
+  codeInput.focus();
+};
+
+window.openAddVoucherModal = function() {
+  const form = document.getElementById('voucher-form');
+  if (form) form.reset();
+
+  const title = document.getElementById('voucher-modal-title');
+  if (title) title.textContent = 'Add New Voucher';
+
+  const preview = document.getElementById('voucher-validity-preview');
+  if (preview) {
+    preview.innerHTML = '📅 Voucher will never expire (no time limit)';
+    preview.className = 'voucher-validity-banner';
+    preview.style.color = '';
+  }
+
+  const dateInput = document.getElementById('voucher-expiry-date');
+  if (dateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.min = today;
+  }
+
+  const limitInput = document.getElementById('voucher-limit-per-customer');
+  if (limitInput) limitInput.checked = true;
+
+  // Set default chip to Never Expires
+  document.querySelectorAll('.validity-chip').forEach(btn => {
+    const d = parseInt(btn.getAttribute('data-days'));
+    btn.classList.toggle('active', d === 0);
+  });
+
+  const modal = document.getElementById('voucher-modal');
+  if (modal) {
+    modal.classList.add('open');
+    modal.classList.add('active');
+  }
+  window.updateVoucherTypeUI();
+};
+
+window.closeVoucherModal = function() {
+  const modal = document.getElementById('voucher-modal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.classList.remove('active');
+  }
+};
+
+window.setQuickValidity = function(days) {
+  const daysInput = document.getElementById('voucher-validity-days');
+  if (daysInput) {
+    daysInput.value = days > 0 ? days : '';
+  }
+  document.querySelectorAll('.validity-chip').forEach(btn => {
+    const d = parseInt(btn.getAttribute('data-days'));
+    btn.classList.toggle('active', d === days);
+  });
+  window.updateValidityPreview();
+};
+
+window.updateValidityPreview = function() {
+  const daysInput = document.getElementById('voucher-validity-days');
+  const dateInput = document.getElementById('voucher-expiry-date');
+  const preview = document.getElementById('voucher-validity-preview');
+  if (!preview) return;
+
+  const days = parseInt(daysInput?.value);
+
+  // Sync active chip
+  document.querySelectorAll('.validity-chip').forEach(btn => {
+    const d = parseInt(btn.getAttribute('data-days'));
+    if (!days && d === 0) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.toggle('active', d === days);
+    }
+  });
+
+  if (days && days > 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    if (dateInput) dateInput.value = dateStr;
+    const dateFormatted = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    preview.innerHTML = `✓ Voucher will be valid for <strong>${days} days</strong> (Expires: ${dateFormatted})`;
+    preview.className = 'voucher-validity-banner has-date';
+    preview.style.color = '#166534';
+  } else {
+    if (dateInput) dateInput.value = '';
+    preview.innerHTML = '📅 Voucher will never expire (no time limit)';
+    preview.className = 'voucher-validity-banner';
+    preview.style.color = 'var(--text-soft)';
+  }
+};
+
+window.onExpiryDateChange = function() {
+  const daysInput = document.getElementById('voucher-validity-days');
+  const dateInput = document.getElementById('voucher-expiry-date');
+  const preview = document.getElementById('voucher-validity-preview');
+  if (!dateInput || !preview) return;
+
+  if (dateInput.value) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [y, m, d] = dateInput.value.split('-').map(Number);
+    const chosen = new Date(y, m - 1, d);
+    const diffTime = chosen - today;
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) {
+      preview.innerHTML = '⚠️ Warning: Selected date is today or in the past!';
+      preview.className = 'voucher-validity-banner';
+      preview.style.color = '#dc2626';
+      if (daysInput) daysInput.value = '0';
+    } else {
+      if (daysInput) daysInput.value = diffDays;
+      const dateFormatted = chosen.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      preview.innerHTML = `✓ Voucher will be valid for <strong>${diffDays} days</strong> (Expires: ${dateFormatted})`;
+      preview.className = 'voucher-validity-banner has-date';
+      preview.style.color = '#166534';
+    }
+  } else {
+    if (daysInput) daysInput.value = '';
+    preview.innerHTML = '📅 Voucher will never expire (no time limit)';
+    preview.className = 'voucher-validity-banner';
+    preview.style.color = 'var(--text-soft)';
+  }
+
+  // Update chip active state
+  const currentDays = parseInt(daysInput?.value) || 0;
+  document.querySelectorAll('.validity-chip').forEach(btn => {
+    const d = parseInt(btn.getAttribute('data-days'));
+    btn.classList.toggle('active', d === currentDays);
+  });
+};
+
+window.updateVoucherTypeUI = function() {
+  const typeSelect = document.getElementById('voucher-type-input');
+  const valueLabel = document.getElementById('voucher-value-label');
+  const valueInput = document.getElementById('voucher-value-input');
+  const valueGroup = document.getElementById('voucher-value-group');
+  const unitBadge = document.getElementById('voucher-value-unit');
+  if (!typeSelect || !valueLabel || !valueInput) return;
+
+  if (typeSelect.value === 'percent') {
+    valueGroup.style.display = '';
+    valueLabel.innerHTML = 'Discount Value (%) <span class="required">*</span>';
+    valueInput.placeholder = 'e.g. 10 for 10%';
+    valueInput.min = '1';
+    valueInput.max = '100';
+    if (unitBadge) unitBadge.textContent = '%';
+  } else if (typeSelect.value === 'fixed') {
+    valueGroup.style.display = '';
+    valueLabel.innerHTML = 'Discount Value (₱) <span class="required">*</span>';
+    valueInput.placeholder = 'e.g. 50 for ₱50';
+    valueInput.min = '1';
+    valueInput.removeAttribute('max');
+    if (unitBadge) unitBadge.textContent = '₱';
+  } else if (typeSelect.value === 'delivery') {
+    valueGroup.style.display = '';
+    valueLabel.innerHTML = 'Delivery Discount (%) <span class="required">*</span>';
+    valueInput.placeholder = '100 for 100% Free Delivery';
+    valueInput.value = '100';
+    valueInput.min = '1';
+    valueInput.max = '100';
+    if (unitBadge) unitBadge.textContent = '%';
+  }
+};
+
+window.saveVoucher = async function(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const codeInput = document.getElementById('voucher-code-input');
+  const typeInput = document.getElementById('voucher-type-input');
+  const valueInput = document.getElementById('voucher-value-input');
+  const minSpendInput = document.getElementById('voucher-min-spend-input');
+  const descInput = document.getElementById('voucher-desc-input');
+  const activeInput = document.getElementById('voucher-active-input');
+  const limitInput = document.getElementById('voucher-limit-per-customer');
+  const saveBtn = document.getElementById('save-voucher-btn');
+
+  const code = (codeInput?.value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+  if (!code) {
+    showToast('Please enter a valid voucher code');
+    return;
+  }
+
+  const daysVal = parseInt(document.getElementById('voucher-validity-days')?.value) || 0;
+  const expiryDateVal = document.getElementById('voucher-expiry-date')?.value || '';
+
+  let validUntil = null;
+  let validDays = null;
+
+  if (expiryDateVal) {
+    validUntil = expiryDateVal;
+    validDays = daysVal > 0 ? daysVal : null;
+  } else if (daysVal > 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + daysVal);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    validUntil = `${yyyy}-${mm}-${dd}`;
+    validDays = daysVal;
+  }
+
+  const existingVoucher = (adminVouchers && adminVouchers[code]) || {};
+
+  const payload = {
+    code,
+    type: typeInput?.value || 'percent',
+    value: parseFloat(valueInput?.value) || 0,
+    minSpend: parseFloat(minSpendInput?.value) || 0,
+    description: (descInput?.value || '').trim(),
+    createdAt: existingVoucher.createdAt || new Date().toISOString(),
+    active: activeInput ? activeInput.checked : true,
+    limitPerCustomer: limitInput ? limitInput.checked : true,
+    usedBy: existingVoucher.usedBy || {},
+    redemptionCount: existingVoucher.redemptionCount || 0,
+    updatedAt: Date.now()
+  };
+
+  if (validDays) payload.validDays = validDays;
+  if (validUntil) payload.validUntil = validUntil;
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+  }
+
+  try {
+    await set(ref(db, `vouchers/${code}`), payload);
+    window.closeVoucherModal();
+    showToast(`Voucher ${code} saved successfully! ✓`);
+  } catch (err) {
+    console.error('Failed to save voucher:', err);
+    showToast('Failed to save voucher. Check connection.');
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Voucher';
+    }
+  }
+};
+
+window.toggleVoucherActive = async function(code, currentActive) {
+  try {
+    const all = getAllAdminVouchers();
+    const current = all[code] || { code, active: true };
+    await update(ref(db, `vouchers/${code}`), {
+      active: !currentActive,
+      updatedAt: Date.now()
+    });
+    showToast(`Voucher ${code} ${!currentActive ? 'activated' : 'paused'} ✓`);
+  } catch (err) {
+    console.error('Failed to toggle voucher:', err);
+    showToast('Failed to update voucher status.');
+  }
+};
+
+window.deleteVoucher = async function(code) {
+  if (!confirm(`Are you sure you want to delete voucher "${code}"?`)) return;
+  try {
+    await remove(ref(db, `vouchers/${code}`));
+    showToast(`Voucher ${code} removed ✓`);
+  } catch (err) {
+    console.error('Failed to delete voucher:', err);
+    showToast('Failed to delete voucher.');
+  }
+};
+
+window.resetVoucherUsage = async function(code) {
+  if (!confirm(`Reset redemption history for voucher "${code}"?\n\nThis will allow previously redeemed customers to use it again.`)) return;
+  try {
+    await update(ref(db, `vouchers/${code}`), {
+      usedBy: null,
+      redemptionCount: 0,
+      updatedAt: Date.now()
+    });
+    showToast(`Redemption history for "${code}" was reset ✓`);
+  } catch (err) {
+    console.error('Failed to reset voucher usage:', err);
+    showToast('Failed to reset voucher usage.');
   }
 };
 
@@ -1594,6 +2035,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('manual-order-modal')?.addEventListener('click', e => {
     if (e.target === e.currentTarget) closeManualOrderModal();
   });
+
+  document.getElementById('voucher-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) window.closeVoucherModal();
+  });
+
+  document.getElementById('voucher-form')?.addEventListener('submit', window.saveVoucher);
 });
 
 

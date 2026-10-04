@@ -4,7 +4,7 @@
 
 import { db } from './firebase.js';
 import {
-  ref, push, get, onValue, set,
+  ref, push, get, onValue, set, update,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
 import { sendOrderNotification } from './notification.js';
 
@@ -24,6 +24,8 @@ let addOns = {};          // loaded from Firebase only
 let storeSettings = {};   // loaded from Firebase only
 let selectedCategory = 'all'; // 'all', 'matcha', 'hojicha'
 let bestSellingProductNames = [];
+let firebaseVouchers = {};
+let menuLoaded = false;
 
 let savedState = {};
 try { savedState = JSON.parse(localStorage.getItem('midori_order_state')) || {}; } catch (e) { }
@@ -32,6 +34,7 @@ const state = {
   // keyed by variationKey, value = { productId, matcha, sweetness, addOns[], qty }
   items: savedState.items || {},
   deliveryType: savedState.deliveryType || 'pickup',
+  voucherCode: savedState.voucherCode || null,
 };
 
 // Normalize any items from legacy storage to ensure qty property exists
@@ -77,10 +80,14 @@ function listenToMenu() {
   // 2. Products — always reflect Firebase (including empty)
   const productsRef = ref(db, 'menu/products');
   onValue(productsRef, (snapshot) => {
+    menuLoaded = true;
     products = snapshot.exists() ? Object.values(snapshot.val()) : [];
     buildProductList();
     updateSummary();
-  }, (err) => console.warn('Could not load products:', err));
+  }, (err) => {
+    menuLoaded = true;
+    console.warn('Could not load products:', err);
+  });
 
   // 3. Add-ons
   const addOnsRef = ref(db, 'menu/addOns');
@@ -119,6 +126,14 @@ function listenToMenu() {
     }
     buildProductList();
   }, (err) => console.warn('Could not load orders for best selling:', err));
+
+  // 6. Vouchers from Firebase
+  const vouchersRef = ref(db, 'vouchers');
+  onValue(vouchersRef, (snapshot) => {
+    firebaseVouchers = snapshot.exists() ? snapshot.val() : {};
+    renderVoucherElements();
+    updateSummary();
+  }, (err) => console.warn('Could not load vouchers:', err));
 }
 
 // ── Category Tab Switching ───────────────────────────────────────────
@@ -153,7 +168,22 @@ function buildProductList() {
   const container = $('product-list');
   if (!container) return;
 
+  if (!menuLoaded && products.length === 0) {
+    // Keep skeleton loading placeholder while waiting for Firebase
+    return;
+  }
+
   container.innerHTML = '';
+
+  if (products.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:48px 16px;color:var(--text-soft)">
+        <div style="font-size:32px;margin-bottom:8px">🍵</div>
+        <p style="font-size:15px;font-weight:600">No drinks currently available.</p>
+      </div>
+    `;
+    return;
+  }
 
   // Classify products into Matcha vs Hojicha
   const matchaList = [];
@@ -1124,6 +1154,405 @@ function setupDeliveryToggle() {
   if (checked) applyDeliveryType(checked.value);
 }
 
+// ── Voucher & Discount Module ────────────────────────────────────────
+
+// Customer Anti-Spam & Identification Helpers (No Auth Required)
+function normalizePhoneNumber(raw) {
+  if (!raw) return '';
+  let digits = String(raw).replace(/\D/g, '');
+  if (digits.startsWith('639') && digits.length === 12) return '0' + digits.slice(2);
+  if (digits.startsWith('9') && digits.length === 10) return '0' + digits;
+  if (digits.startsWith('09') && digits.length === 11) return digits;
+  return digits;
+}
+
+function getOrCreateDeviceId() {
+  let devId = '';
+  try {
+    devId = localStorage.getItem('midori_device_id');
+    if (!devId) {
+      devId = 'dev_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+      localStorage.setItem('midori_device_id', devId);
+    }
+  } catch (e) {
+    devId = 'dev_temp_' + Date.now();
+  }
+  return devId;
+}
+
+function getLocalUsedVouchers() {
+  try {
+    const list = JSON.parse(localStorage.getItem('midori_used_vouchers') || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function markVoucherAsUsedLocally(code) {
+  if (!code) return;
+  try {
+    const list = getLocalUsedVouchers();
+    const upper = code.toUpperCase();
+    if (!list.includes(upper)) {
+      list.push(upper);
+      localStorage.setItem('midori_used_vouchers', JSON.stringify(list));
+    }
+  } catch (e) { }
+}
+
+function getCustomerMobile() {
+  const fromInput = $('mobile-number')?.value?.trim();
+  if (fromInput) return normalizePhoneNumber(fromInput);
+  try {
+    const saved = JSON.parse(localStorage.getItem('midori_form_state') || '{}');
+    if (saved['mobile-number']) return normalizePhoneNumber(saved['mobile-number']);
+  } catch (e) { }
+  return '';
+}
+
+function checkVoucherCustomerUsage(voucher, phone = null) {
+  if (!voucher || voucher.limitPerCustomer === false) {
+    return { hasUsed: false };
+  }
+  const upperCode = (voucher.code || '').toUpperCase();
+
+  // 1. Local device storage check
+  const localUsed = getLocalUsedVouchers();
+  if (localUsed.includes(upperCode)) {
+    return {
+      hasUsed: true,
+      reason: `You have already redeemed voucher "${voucher.code}". This offer is limited to 1 use per customer.`
+    };
+  }
+
+  // 2. Client Device ID check in Firebase voucher.usedBy
+  const devId = getOrCreateDeviceId();
+  if (voucher.usedBy && voucher.usedBy[devId]) {
+    return {
+      hasUsed: true,
+      reason: `This device has already redeemed voucher "${voucher.code}". Limited to 1 use per customer.`
+    };
+  }
+
+  // 3. Mobile phone check in Firebase voucher.usedBy
+  const mobileToTest = phone ? normalizePhoneNumber(phone) : getCustomerMobile();
+  if (mobileToTest && voucher.usedBy && voucher.usedBy[mobileToTest]) {
+    return {
+      hasUsed: true,
+      reason: `Mobile number (${mobileToTest}) has already used voucher "${voucher.code}". Limited to 1 use per customer.`
+    };
+  }
+
+  return { hasUsed: false };
+}
+
+function getAllVouchers() {
+  const result = {};
+  if (firebaseVouchers && typeof firebaseVouchers === 'object') {
+    Object.entries(firebaseVouchers).forEach(([k, v]) => {
+      if (v && v.code && !v.deleted) {
+        result[v.code.toUpperCase()] = {
+          code: v.code.toUpperCase(),
+          type: v.type || 'fixed',
+          value: parseFloat(v.value) || 0,
+          minSpend: parseFloat(v.minSpend) || 0,
+          description: v.description || '',
+          validDays: v.validDays ? parseInt(v.validDays) : null,
+          validUntil: v.validUntil || null,
+          createdAt: v.createdAt || null,
+          active: v.active !== false,
+          limitPerCustomer: v.limitPerCustomer !== false,
+          usedBy: v.usedBy || {},
+          redemptionCount: typeof v.redemptionCount === 'number' ? v.redemptionCount : 0
+        };
+      }
+    });
+  }
+  return result;
+}
+
+function computeDiscount(voucher, subtotal, deliveryFee, isDelivery, phone = null) {
+  if (!voucher || voucher.active === false) {
+    return { discountAmount: 0, isValid: false, reason: 'This voucher is currently inactive or not found.' };
+  }
+
+  // Anti-Spam Check: 1 use per customer
+  const usageCheck = checkVoucherCustomerUsage(voucher, phone);
+  if (usageCheck.hasUsed) {
+    return { discountAmount: 0, isValid: false, reason: usageCheck.reason };
+  }
+
+  // Check validity / expiration date
+  if (voucher.validUntil) {
+    const expiryDate = new Date(voucher.validUntil + 'T23:59:59');
+    if (new Date() > expiryDate) {
+      return {
+        discountAmount: 0,
+        isValid: false,
+        reason: `Voucher "${voucher.code}" expired on ${formatDate(voucher.validUntil)}.`
+      };
+    }
+  }
+
+  if (subtotal < (voucher.minSpend || 0)) {
+    return {
+      discountAmount: 0,
+      isValid: false,
+      reason: `Minimum spend of ₱${(voucher.minSpend || 0).toLocaleString()} required (current subtotal: ₱${subtotal.toLocaleString()}).`
+    };
+  }
+
+  let discount = 0;
+  if (voucher.type === 'percent') {
+    discount = Math.round(subtotal * ((voucher.value || 0) / 100));
+  } else if (voucher.type === 'fixed') {
+    discount = Math.min(subtotal, voucher.value || 0);
+  } else if (voucher.type === 'delivery') {
+    if (!isDelivery) {
+      return {
+        discountAmount: 0,
+        isValid: true,
+        reason: 'Free delivery voucher active! Discount applies when delivery is selected.'
+      };
+    }
+    const pct = voucher.value ? Math.min(100, voucher.value) : 100;
+    discount = Math.round(deliveryFee * (pct / 100));
+  }
+  return { discountAmount: Math.max(0, discount), isValid: true, reason: '' };
+}
+
+function showVoucherMsg(msg, type = 'error', target = 'both') {
+  const targets = [];
+  if (target === 'cart' || target === 'both') targets.push('cart-voucher-msg');
+  if (target === 'checkout' || target === 'both') targets.push('checkout-voucher-msg');
+
+  targets.forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    if (!msg) {
+      el.className = 'voucher-feedback-msg hidden';
+      el.textContent = '';
+      return;
+    }
+    el.className = `voucher-feedback-msg ${type}`;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  });
+}
+
+window.showLockedVoucherHint = function (code, shortfall, minSpend) {
+  const msg = `🔒 ${code} needs a minimum spend of ₱${Number(minSpend).toLocaleString()}. Add ₱${Number(shortfall).toLocaleString()} more to unlock it!`;
+  showVoucherMsg(msg, 'warning', 'both');
+};
+
+window.showAlreadyUsedVoucherHint = function (code) {
+  const msg = `🚫 Voucher "${code}" was already redeemed. This promotion is limited to 1 use per customer.`;
+  showVoucherMsg(msg, 'error', 'both');
+};
+
+function renderVoucherElements(currentVoucher, discountAmount, subtotal) {
+  const allVouchers = getAllVouchers();
+  const now = new Date();
+
+  // Filter only active, non-expired vouchers for the chips
+  const activeVouchers = Object.values(allVouchers).filter(v => {
+    if (v.active === false) return false;
+    if (v.validUntil) {
+      const expiry = new Date(v.validUntil + 'T23:59:59');
+      if (now > expiry) return false;
+    }
+    return true;
+  });
+
+  // Toggle Available Deals sections (hide completely if no active admin vouchers exist)
+  const availWrap = $('available-vouchers-wrap');
+  if (availWrap) {
+    availWrap.style.display = activeVouchers.length > 0 ? '' : 'none';
+  }
+  const cartChips = $('cart-voucher-chips');
+  if (cartChips) {
+    cartChips.style.display = activeVouchers.length > 0 ? '' : 'none';
+  }
+
+  // 1. Render Quick Voucher Chips in Cart Drawer and Step 3
+  const chipsHtml = activeVouchers.map(v => {
+    const isCurrent = currentVoucher && currentVoucher.code === v.code;
+    let badgeText = '';
+    if (v.type === 'percent') badgeText = `${v.value}% OFF`;
+    else if (v.type === 'fixed') badgeText = `₱${v.value} OFF`;
+    else if (v.type === 'delivery') badgeText = 'FREE DELIVERY';
+
+    let expiryHint = '';
+    if (v.validUntil) {
+      const endD = new Date(v.validUntil + 'T23:59:59');
+      const diffDays = Math.ceil((endD - now) / (1000 * 60 * 60 * 24));
+      if (diffDays > 0) {
+        expiryHint = ` · ${diffDays}d left`;
+      }
+    }
+
+    // Check if already used by this customer
+    const usageCheck = checkVoucherCustomerUsage(v);
+    if (usageCheck.hasUsed) {
+      return `
+      <button type="button" class="voucher-chip used" aria-disabled="true"
+        onclick="window.showAlreadyUsedVoucherHint('${v.code}')"
+        title="You have already redeemed voucher ${v.code}">
+        <span class="voucher-chip-row">
+          <span>🚫</span>
+          <strong>${v.code}</strong>
+          <span class="voucher-chip-badge" style="background:#fee2e2;color:#991b1b;">Used</span>
+        </span>
+        <span class="voucher-chip-used-hint">Already redeemed · 1 use per customer</span>
+      </button>
+    `;
+    }
+
+    const minSpend = Number(v.minSpend) || 0;
+    const sub = Number(subtotal) || 0;
+    const shortfall = Math.max(0, minSpend - sub);
+    const locked = minSpend > 0 && shortfall > 0;
+
+    if (locked) {
+      const pct = Math.min(100, Math.round((sub / minSpend) * 100));
+      return `
+      <button type="button" class="voucher-chip locked" aria-disabled="true"
+        onclick="window.showLockedVoucherHint('${v.code}', ${shortfall}, ${minSpend})"
+        title="Spend ₱${minSpend.toLocaleString()} to unlock">
+        <span class="voucher-chip-row">
+          <span>🔒</span>
+          <strong>${v.code}</strong>
+          <span class="voucher-chip-badge">${badgeText}</span>
+        </span>
+        <span class="voucher-chip-lock-hint">Add <b>₱${shortfall.toLocaleString()}</b> more to unlock · Min ₱${minSpend.toLocaleString()}</span>
+        <span class="voucher-chip-progress"><span style="width:${pct}%"></span></span>
+      </button>
+    `;
+    }
+
+    return `
+      <button type="button" class="voucher-chip ${isCurrent ? 'active' : ''}" onclick="window.applyVoucherCode('auto', '${v.code}')" title="${v.description || v.code}">
+        <span>🎟️</span>
+        <strong>${v.code}</strong>
+        <span style="opacity:0.85">(${badgeText}${expiryHint})</span>
+      </button>
+    `;
+  }).join('');
+
+  if ($('cart-voucher-chips')) $('cart-voucher-chips').innerHTML = chipsHtml;
+  if ($('checkout-voucher-chips')) $('checkout-voucher-chips').innerHTML = chipsHtml;
+
+  // 2. Render Applied Box vs Input Box
+  const isApplied = !!(currentVoucher && currentVoucher.active !== false && discountAmount >= 0 && (!currentVoucher.minSpend || (subtotal || 0) >= currentVoucher.minSpend));
+
+  // Cart Drawer
+  const cartInputBox = $('cart-voucher-input-box');
+  const cartAppliedBox = $('cart-voucher-applied-box');
+  if (cartInputBox && cartAppliedBox) {
+    if (isApplied) {
+      cartInputBox.classList.add('hidden');
+      cartAppliedBox.classList.remove('hidden');
+      if ($('cart-voucher-badge-code')) $('cart-voucher-badge-code').textContent = currentVoucher.code;
+      if ($('cart-voucher-badge-saving')) $('cart-voucher-badge-saving').textContent = `-₱${(discountAmount || 0).toLocaleString()}`;
+    } else {
+      cartInputBox.classList.remove('hidden');
+      cartAppliedBox.classList.add('hidden');
+    }
+  }
+
+  // Step 3 Checkout Card
+  const checkoutInputBox = $('checkout-voucher-input-box');
+  const checkoutAppliedBox = $('checkout-voucher-applied-box');
+  if (checkoutInputBox && checkoutAppliedBox) {
+    if (isApplied) {
+      checkoutInputBox.classList.add('hidden');
+      checkoutAppliedBox.classList.remove('hidden');
+      if ($('checkout-voucher-badge-code')) $('checkout-voucher-badge-code').textContent = currentVoucher.code;
+      if ($('checkout-voucher-badge-desc')) {
+        let desc = currentVoucher.description || '';
+        if (discountAmount > 0) desc += ` (You save ₱${discountAmount.toLocaleString()})`;
+        $('checkout-voucher-badge-desc').textContent = desc || 'Discount applied to your order';
+      }
+    } else {
+      checkoutInputBox.classList.remove('hidden');
+      checkoutAppliedBox.classList.add('hidden');
+    }
+  }
+}
+
+window.applyVoucherCode = function (source, codeOverride) {
+  let code = codeOverride;
+  if (!code) {
+    const input = source === 'cart' ? $('cart-voucher-input') : $('checkout-voucher-input');
+    code = input?.value || '';
+  }
+  code = (code || '').trim().toUpperCase();
+
+  if (!code) {
+    showVoucherMsg('Please enter a voucher code.', 'error', source);
+    return;
+  }
+
+  const totalQty = getTotalCartQty();
+  if (totalQty === 0) {
+    showVoucherMsg('Please add drinks to your cart first.', 'error', source);
+    return;
+  }
+
+  const vouchers = getAllVouchers();
+  const voucher = vouchers[code];
+
+  if (!voucher || voucher.active === false) {
+    showVoucherMsg(`Voucher code "${code}" is invalid or expired.`, 'error', source);
+    return;
+  }
+
+  // Check 1 use per customer anti-spam limit
+  const usageCheck = checkVoucherCustomerUsage(voucher);
+  if (usageCheck.hasUsed) {
+    showVoucherMsg(usageCheck.reason, 'error', source);
+    return;
+  }
+
+  // Calculate current subtotal
+  let currentSubtotal = 0;
+  Object.values(state.items).forEach(v => {
+    const p = products.find(prod => prod.id === v.productId) || { price: 0 };
+    const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
+    currentSubtotal += ((p.price || 0) + addOnTotal) * (v.qty || 1);
+  });
+
+  const isDelivery = state.deliveryType === 'delivery';
+  const deliveryFee = isDelivery ? DELIVERY_FEE : 0;
+  const check = computeDiscount(voucher, currentSubtotal, deliveryFee, isDelivery);
+
+  if (!check.isValid) {
+    showVoucherMsg(check.reason, 'error', source);
+    return;
+  }
+
+  // Success
+  state.voucherCode = voucher.code;
+  showVoucherMsg(`✓ Voucher "${voucher.code}" applied! Save ₱${check.discountAmount.toLocaleString()}`, 'success', 'both');
+
+  // Clear inputs
+  if ($('cart-voucher-input')) $('cart-voucher-input').value = '';
+  if ($('checkout-voucher-input')) $('checkout-voucher-input').value = '';
+
+  updateSummary();
+  if (window.renderCartDrawer) window.renderCartDrawer();
+  showToast(`Voucher ${voucher.code} applied! 🍵`);
+};
+
+window.removeVoucherCode = function () {
+  state.voucherCode = null;
+  showVoucherMsg('', '', 'both');
+  updateSummary();
+  if (window.renderCartDrawer) window.renderCartDrawer();
+  showToast('Voucher removed');
+};
+
 // ── Summary & Shopee Cart Sync ─────────────────────────────────────
 function updateSummary() {
   const summarySection = $('order-summary');
@@ -1187,8 +1616,25 @@ function updateSummary() {
 
   const isDelivery = state.deliveryType === 'delivery';
   const deliveryFee = isDelivery ? DELIVERY_FEE : 0;
-  const total = subtotal + deliveryFee;
   const hasPinned = !!($('delivery-lat')?.value);
+
+  // Voucher discount calculation
+  const vouchers = getAllVouchers();
+  const currentVoucher = state.voucherCode ? vouchers[state.voucherCode] : null;
+  let discountAmount = 0;
+  if (currentVoucher) {
+    const discountRes = computeDiscount(currentVoucher, subtotal, deliveryFee, isDelivery);
+    if (discountRes.isValid) {
+      discountAmount = discountRes.discountAmount;
+    } else if (subtotal > 0 && currentVoucher.minSpend && subtotal < currentVoucher.minSpend) {
+      showVoucherMsg(`⚠️ Add ₱${(currentVoucher.minSpend - subtotal).toLocaleString()} more to keep ${currentVoucher.code} voucher`, 'warning');
+    } else {
+      showVoucherMsg(discountRes.reason, 'error');
+      state.voucherCode = null;
+    }
+  }
+
+  const total = Math.max(0, subtotal + deliveryFee - discountAmount);
 
   // 3. Update Step 2 Quick Strip
   if ($('strip-cart-count')) $('strip-cart-count').textContent = `${totalQty} drink${totalQty === 1 ? '' : 's'}`;
@@ -1198,6 +1644,17 @@ function updateSummary() {
   if ($('cart-drawer-count')) $('cart-drawer-count').textContent = `${totalQty} drink${totalQty === 1 ? '' : 's'}`;
   if ($('cart-drawer-subtotal')) $('cart-drawer-subtotal').textContent = `₱${subtotal.toLocaleString()}`;
   if ($('cart-drawer-btn-count')) $('cart-drawer-btn-count').textContent = `(${totalQty})`;
+
+  // Update Cart Drawer Discount Row
+  const cartDiscountRow = $('cart-drawer-discount-row');
+  if (cartDiscountRow) {
+    if (discountAmount > 0 && currentVoucher) {
+      cartDiscountRow.style.display = 'flex';
+      if ($('cart-drawer-discount')) $('cart-drawer-discount').textContent = `-₱${discountAmount.toLocaleString()}`;
+    } else {
+      cartDiscountRow.style.display = 'none';
+    }
+  }
 
   // 5. Update Step 3 Summary Table
   if (totalQty === 0) {
@@ -1209,6 +1666,19 @@ function updateSummary() {
 
   if ($('summary-items')) $('summary-items').innerHTML = itemRows;
   if ($('summary-subtotal')) $('summary-subtotal').textContent = `\u20b1${subtotal.toLocaleString()}`;
+
+  // Update Summary Table Discount Row
+  const summaryDiscountRow = $('summary-discount-row');
+  if (summaryDiscountRow) {
+    if (discountAmount > 0 && currentVoucher) {
+      summaryDiscountRow.style.display = '';
+      if ($('summary-discount-code')) $('summary-discount-code').textContent = currentVoucher.code;
+      if ($('summary-discount')) $('summary-discount').textContent = `-₱${discountAmount.toLocaleString()}`;
+    } else {
+      summaryDiscountRow.style.display = 'none';
+    }
+  }
+
   if ($('summary-delivery-row')) $('summary-delivery-row').style.display = isDelivery ? '' : 'none';
   if ($('summary-delivery-fee')) {
     $('summary-delivery-fee').textContent = isDelivery && hasPinned
@@ -1216,6 +1686,8 @@ function updateSummary() {
       : (isDelivery ? 'Pin location' : '\u20b10');
   }
   if ($('summary-total')) $('summary-total').textContent = `\u20b1${total.toLocaleString()}`;
+
+  renderVoucherElements(currentVoucher, discountAmount, subtotal);
 
   // 6. Update Sticky Cart on Mobile & Desktop
   if (stickyCart) {
@@ -1231,12 +1703,20 @@ function updateSummary() {
           shippingEl.style.color = '#dc2626';
           shippingEl.style.display = '';
         } else if (isDelivery && hasPinned && deliveryFee > 0) {
-          shippingEl.textContent = `(\u20b1${subtotal.toLocaleString()} + \u20b1${deliveryFee.toLocaleString()} shipping)`;
+          shippingEl.textContent = discountAmount > 0
+            ? `(₱${subtotal.toLocaleString()} - ₱${discountAmount.toLocaleString()} discount + ₱${deliveryFee.toLocaleString()} shipping)`
+            : `(\u20b1${subtotal.toLocaleString()} + \u20b1${deliveryFee.toLocaleString()} shipping)`;
           shippingEl.style.color = 'var(--text-soft)';
           shippingEl.style.display = '';
         } else if (isDelivery && !hasPinned) {
-          shippingEl.textContent = '+ shipping (pin your location)';
+          shippingEl.textContent = discountAmount > 0
+            ? `-₱${discountAmount.toLocaleString()} discount applied (+ shipping upon pin)`
+            : '+ shipping (pin your location)';
           shippingEl.style.color = 'var(--green-600)';
+          shippingEl.style.display = '';
+        } else if (!isDelivery && discountAmount > 0) {
+          shippingEl.textContent = `(₱${subtotal.toLocaleString()} - ₱${discountAmount.toLocaleString()} voucher discount)`;
+          shippingEl.style.color = '#15803d';
           shippingEl.style.display = '';
         } else {
           shippingEl.style.display = 'none';
@@ -1344,7 +1824,7 @@ function setupDateTimeRules() {
     if (typeof timeInput.showPicker === 'function') {
       try {
         timeInput.showPicker();
-      } catch (err) {}
+      } catch (err) { }
     }
   });
 
@@ -1545,6 +2025,23 @@ function setupMobileInput() {
     }
     e.target.value = val;
   });
+
+  // Re-verify applied voucher when customer changes or finishes entering mobile number
+  input.addEventListener('blur', (e) => {
+    if (state.voucherCode) {
+      const vouchers = getAllVouchers();
+      const currentVoucher = vouchers[state.voucherCode];
+      if (currentVoucher) {
+        const usage = checkVoucherCustomerUsage(currentVoucher, e.target.value);
+        if (usage.hasUsed) {
+          state.voucherCode = null;
+          updateSummary();
+          showVoucherMsg(usage.reason, 'error', 'both');
+          showToast(`⚠️ Voucher removed: already redeemed by this mobile number.`);
+        }
+      }
+    }
+  });
 }
 
 // ── Form Validation ──────────────────────────────────────────────────
@@ -1677,7 +2174,28 @@ async function placeOrder() {
       });
 
     const deliveryFee = state.deliveryType === 'delivery' ? DELIVERY_FEE : 0;
-    const total = subtotal + deliveryFee;
+
+    // Voucher discount calculation & anti-spam validation
+    const vouchers = getAllVouchers();
+    const currentVoucher = state.voucherCode ? vouchers[state.voucherCode] : null;
+
+    if (currentVoucher) {
+      const customerMobile = $('mobile-number').value.trim().replace(/[\s-]/g, '');
+      const usageCheck = checkVoucherCustomerUsage(currentVoucher, customerMobile);
+      if (usageCheck.hasUsed) {
+        showToast(`⚠️ ${usageCheck.reason}`);
+        showVoucherMsg(usageCheck.reason, 'error', 'both');
+        state.voucherCode = null;
+        updateSummary();
+        btn.disabled = false;
+        btn.textContent = '🍵 Place Order';
+        return;
+      }
+    }
+
+    const discountRes = currentVoucher ? computeDiscount(currentVoucher, subtotal, deliveryFee, state.deliveryType === 'delivery', $('mobile-number')?.value) : { discountAmount: 0 };
+    const discountAmount = discountRes.isValid ? discountRes.discountAmount : 0;
+    const total = Math.max(0, subtotal + deliveryFee - discountAmount);
 
     const orderNumber = await generateOrderNumber();
 
@@ -1702,6 +2220,9 @@ async function placeOrder() {
       items: selectedItems,
       subtotal,
       deliveryFee,
+      discountAmount,
+      voucherCode: discountAmount > 0 ? (currentVoucher?.code || state.voucherCode) : null,
+      discountType: discountAmount > 0 ? (currentVoucher?.type || null) : null,
       total,
     };
 
@@ -1712,6 +2233,39 @@ async function placeOrder() {
     );
     const pushRef = await Promise.race([pushPromise, timeoutPromise]);
     const orderKey = pushRef.key;
+
+    // Record voucher redemption to prevent reuse (1 use per customer)
+    if (order.voucherCode) {
+      try {
+        const cleanMobile = normalizePhoneNumber(order.mobile);
+        const devId = getOrCreateDeviceId();
+        const nowIso = new Date().toISOString();
+        const redemptionData = {
+          orderNumber: order.orderNumber,
+          redeemedAt: nowIso,
+          customerName: order.name,
+        };
+
+        const updates = {};
+        if (cleanMobile) {
+          updates[`vouchers/${order.voucherCode}/usedBy/${cleanMobile}`] = { ...redemptionData, deviceId: devId };
+        }
+        if (devId) {
+          updates[`vouchers/${order.voucherCode}/usedBy/${devId}`] = { ...redemptionData, mobile: cleanMobile };
+        }
+
+        const v = vouchers[order.voucherCode];
+        const nextCount = (v?.redemptionCount || 0) + 1;
+        updates[`vouchers/${order.voucherCode}/redemptionCount`] = nextCount;
+        updates[`vouchers/${order.voucherCode}/lastRedeemedAt`] = nowIso;
+
+        await update(ref(db), updates);
+        markVoucherAsUsedLocally(order.voucherCode);
+      } catch (redemptionErr) {
+        console.warn('Could not record voucher redemption to Firebase:', redemptionErr);
+        markVoucherAsUsedLocally(order.voucherCode);
+      }
+    }
 
     // Send webhook notification (non-blocking)
     sendOrderNotification(order).catch(console.error);
@@ -1741,6 +2295,7 @@ async function placeOrder() {
       localStorage.setItem('midori_active_order', JSON.stringify(activeOrders));
 
       // Clear persistence after successful order
+      state.voucherCode = null;
       localStorage.removeItem('midori_order_state');
       localStorage.removeItem('midori_form_state');
     } catch (e) {
@@ -2080,11 +2635,21 @@ function showSuccessScreen(order, orderKey) {
   }).join('<br>');
   $('success-items').innerHTML = itemLines;
 
-  $('success-subtotal').textContent = `₱${order.subtotal.toLocaleString()}`;
+  $('success-subtotal').textContent = `₱${(order.subtotal || 0).toLocaleString()}`;
+  const successDiscountRow = $('success-discount-row');
+  if (successDiscountRow) {
+    if (order.discountAmount && order.discountAmount > 0) {
+      successDiscountRow.classList.remove('hidden');
+      if ($('success-discount-label')) $('success-discount-label').textContent = `Discount (${order.voucherCode || 'Voucher'})`;
+      if ($('success-discount')) $('success-discount').textContent = `-₱${order.discountAmount.toLocaleString()}`;
+    } else {
+      successDiscountRow.classList.add('hidden');
+    }
+  }
   $('success-delivery-fee').textContent = order.deliveryFee > 0
     ? `₱${order.deliveryFee.toLocaleString()}`
     : 'Free';
-  $('success-total').textContent = `₱${order.total.toLocaleString()}`;
+  $('success-total').textContent = `₱${(order.total || 0).toLocaleString()}`;
 
   // Start real-time status listener
   listenToOrderStatus(orderKey, order.deliveryType);
@@ -2261,9 +2826,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   setupMobileInput();
+  listenToMenu();
   buildProductList();
   setupDeliveryToggle();
-  listenToMenu();
   checkActiveOrder();
   updateSummary(); // sync cart badge and totals on initial load
 
