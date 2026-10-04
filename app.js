@@ -4,7 +4,7 @@
 
 import { db } from './firebase.js';
 import {
-  ref, push, get, onValue, set, update,
+  ref, push, get, onValue, set, update, onDisconnect,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
 import { sendOrderNotification } from './notification.js';
 
@@ -615,12 +615,17 @@ window.openCartDrawer = function () {
   $('cart-drawer-backdrop')?.classList.remove('hidden');
   $('cart-drawer')?.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+  if (typeof trackUserActivity === 'function') {
+    const qty = typeof getTotalCartQty === 'function' ? getTotalCartQty() : 0;
+    trackUserActivity(`In Cart Drawer (${qty} drink${qty === 1 ? '' : 's'})`);
+  }
 };
 
 window.closeCartDrawer = function () {
   $('cart-drawer-backdrop')?.classList.add('hidden');
   $('cart-drawer')?.classList.add('hidden');
   document.body.style.overflow = '';
+  if (typeof trackUserActivity === 'function') trackUserActivity();
 };
 
 window.renderCartDrawer = function () {
@@ -1201,6 +1206,16 @@ function markVoucherAsUsedLocally(code) {
   } catch (e) { }
 }
 
+function removeLocalUsedVoucher(code) {
+  if (!code) return;
+  try {
+    const list = getLocalUsedVouchers();
+    const upper = code.toUpperCase();
+    const filtered = list.filter(c => c !== upper);
+    localStorage.setItem('midori_used_vouchers', JSON.stringify(filtered));
+  } catch (e) { }
+}
+
 function getCustomerMobile() {
   const fromInput = $('mobile-number')?.value?.trim();
   if (fromInput) return normalizePhoneNumber(fromInput);
@@ -1216,32 +1231,46 @@ function checkVoucherCustomerUsage(voucher, phone = null) {
     return { hasUsed: false };
   }
   const upperCode = (voucher.code || '').toUpperCase();
-
-  // 1. Local device storage check
-  const localUsed = getLocalUsedVouchers();
-  if (localUsed.includes(upperCode)) {
-    return {
-      hasUsed: true,
-      reason: `You have already redeemed voucher "${voucher.code}". This offer is limited to 1 use per customer.`
-    };
-  }
-
-  // 2. Client Device ID check in Firebase voucher.usedBy
   const devId = getOrCreateDeviceId();
-  if (voucher.usedBy && voucher.usedBy[devId]) {
+
+  // 1. Check if current device has redeemed in Firebase
+  const deviceUsedInDb = !!(
+    (voucher.usedDevices && voucher.usedDevices[devId]) ||
+    (voucher.usedBy && voucher.usedBy[devId])
+  );
+
+  // 2. Synchronize with localStorage
+  const localUsed = getLocalUsedVouchers();
+  const hasLocalRecord = localUsed.includes(upperCode);
+
+  // If voucher has been reset in Firebase (redemptionCount 0 or no device records) and this device isn't in DB,
+  // clean up local storage cache so the device is immediately unblocked
+  const isResetInDb = voucher.redemptionCount === 0 || (!voucher.usedDevices && !voucher.usedBy);
+  if (isResetInDb && !deviceUsedInDb) {
+    if (hasLocalRecord) removeLocalUsedVoucher(upperCode);
+  } else if (hasLocalRecord || deviceUsedInDb) {
+    if (deviceUsedInDb && !hasLocalRecord) markVoucherAsUsedLocally(upperCode);
     return {
       hasUsed: true,
       reason: `This device has already redeemed voucher "${voucher.code}". Limited to 1 use per customer.`
     };
   }
 
-  // 3. Mobile phone check in Firebase voucher.usedBy
-  const mobileToTest = phone ? normalizePhoneNumber(phone) : getCustomerMobile();
-  if (mobileToTest && voucher.usedBy && voucher.usedBy[mobileToTest]) {
-    return {
-      hasUsed: true,
-      reason: `Mobile number (${mobileToTest}) has already used voucher "${voucher.code}". Limited to 1 use per customer.`
-    };
+  // 3. Optional strict mobile check (only if explicitly enabled on the voucher)
+  if (voucher.strictMobileLimit) {
+    const mobileToTest = phone ? normalizePhoneNumber(phone) : getCustomerMobile();
+    if (mobileToTest && mobileToTest.length >= 10) {
+      const mobileUsedInDb = !!(
+        (voucher.usedMobiles && voucher.usedMobiles[mobileToTest]) ||
+        (voucher.usedBy && voucher.usedBy[mobileToTest])
+      );
+      if (mobileUsedInDb) {
+        return {
+          hasUsed: true,
+          reason: `Mobile number (${mobileToTest}) has already used voucher "${voucher.code}". Limited to 1 use per customer.`
+        };
+      }
+    }
   }
 
   return { hasUsed: false };
@@ -1263,7 +1292,10 @@ function getAllVouchers() {
           createdAt: v.createdAt || null,
           active: v.active !== false,
           limitPerCustomer: v.limitPerCustomer !== false,
+          strictMobileLimit: !!v.strictMobileLimit,
           usedBy: v.usedBy || {},
+          usedDevices: v.usedDevices || {},
+          usedMobiles: v.usedMobiles || {},
           redemptionCount: typeof v.redemptionCount === 'number' ? v.redemptionCount : 0
         };
       }
@@ -2247,11 +2279,13 @@ async function placeOrder() {
         };
 
         const updates = {};
-        if (cleanMobile) {
-          updates[`vouchers/${order.voucherCode}/usedBy/${cleanMobile}`] = { ...redemptionData, deviceId: devId };
-        }
         if (devId) {
+          updates[`vouchers/${order.voucherCode}/usedDevices/${devId}`] = { ...redemptionData, mobile: cleanMobile };
           updates[`vouchers/${order.voucherCode}/usedBy/${devId}`] = { ...redemptionData, mobile: cleanMobile };
+        }
+        if (cleanMobile && cleanMobile.length >= 10) {
+          updates[`vouchers/${order.voucherCode}/usedMobiles/${cleanMobile}`] = { ...redemptionData, deviceId: devId };
+          updates[`vouchers/${order.voucherCode}/usedBy/${cleanMobile}`] = { ...redemptionData, deviceId: devId };
         }
 
         const v = vouchers[order.voucherCode];
@@ -2300,6 +2334,10 @@ async function placeOrder() {
       localStorage.removeItem('midori_form_state');
     } catch (e) {
       console.warn('Could not save to localStorage:', e);
+    }
+
+    if (typeof trackUserActivity === 'function') {
+      trackUserActivity(`Placed Order #${order.orderNumber}`);
     }
 
     showSuccessScreen(order, orderKey);
@@ -2790,8 +2828,80 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// ── Init ─────────────────────────────────────────────────────────────
+// ── Live Traffic & Presence Tracking ─────────────────────────────────
+const MIDORI_SESSION_ID = 'sess_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
 
+function trackUserActivity(stageOverride) {
+  try {
+    const presenceRef = ref(db, `presence/${MIDORI_SESSION_ID}`);
+    const qty = typeof getTotalCartQty === 'function' ? getTotalCartQty() : 0;
+    let stage = stageOverride;
+    if (!stage) {
+      if (!$('wizard-step-3')?.classList.contains('hidden')) {
+        stage = 'In Checkout (Step 3)';
+      } else if (!$('wizard-step-2')?.classList.contains('hidden')) {
+        stage = 'Delivery & Schedule (Step 2)';
+      } else if (!$('cart-drawer')?.classList.contains('hidden')) {
+        stage = `In Cart Drawer (${qty} drink${qty === 1 ? '' : 's'})`;
+      } else {
+        stage = qty > 0 ? `Cart: ${qty} drink${qty === 1 ? '' : 's'}` : 'Browsing Menu';
+      }
+    }
+
+    set(presenceRef, {
+      sessionId: MIDORI_SESSION_ID,
+      stage,
+      cartQty: qty,
+      device: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+      lastSeen: Date.now()
+    }).catch(() => {});
+  } catch (e) { }
+}
+
+function initPresenceTracking() {
+  try {
+    const connectedRef = ref(db, '.info/connected');
+    const presenceRef = ref(db, `presence/${MIDORI_SESSION_ID}`);
+
+    onValue(connectedRef, (snap) => {
+      if (snap.val() === true) {
+        onDisconnect(presenceRef).remove().catch(() => {});
+        trackUserActivity('Browsing Menu');
+      }
+    });
+
+    // Heartbeat every 45s to maintain active presence
+    setInterval(() => {
+      trackUserActivity();
+    }, 45000);
+
+    // Record daily unique visitor & page view for analytics
+    recordTrafficVisit();
+  } catch (e) {
+    console.warn('Presence tracking error:', e);
+  }
+}
+
+function recordTrafficVisit() {
+  try {
+    const today = typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0];
+    const devId = getOrCreateDeviceId();
+    const lastVisitKey = 'midori_traffic_' + today;
+    if (!localStorage.getItem(lastVisitKey)) {
+      localStorage.setItem(lastVisitKey, '1');
+      set(ref(db, `analytics/dailyVisitors/${today}/${devId}`), {
+        device: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+        firstSeen: Date.now(),
+        referrer: document.referrer ? (new URL(document.referrer, window.location.origin).hostname || 'Direct') : 'Direct'
+      }).catch(() => {});
+    }
+
+    push(ref(db, `analytics/pageViews/${today}`), {
+      timestamp: Date.now(),
+      device: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop'
+    }).catch(() => {});
+  } catch (e) { }
+}
 
 // ── Form State Persistence ───────────────────────────────────────────
 const FORM_FIELDS = [
@@ -2816,6 +2926,7 @@ function restoreFormState() {
 // Call the listener during init
 document.addEventListener('DOMContentLoaded', () => {
   restoreFormState();
+  initPresenceTracking();
   $('order-form-area')?.addEventListener('input', saveFormState);
   $('order-form-area')?.addEventListener('change', saveFormState);
 
@@ -2966,6 +3077,10 @@ window.nextWizardStep = function (step) {
   const target = document.getElementById(`wizard-step-${step}`);
   if (target) {
     target.classList.remove('hidden');
+    if (typeof trackUserActivity === 'function') {
+      const stepName = step === 1 ? 'Browsing Menu' : (step === 2 ? 'Delivery Info (Step 2)' : 'In Checkout (Step 3)');
+      trackUserActivity(stepName);
+    }
     // Scroll to the top of the form area
     const formArea = document.getElementById('order-form-area');
     if (formArea) {

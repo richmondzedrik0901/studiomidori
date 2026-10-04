@@ -46,6 +46,11 @@
   <header class="admin-header">
     <div class="logo">Studio Midori</div>
     <div style="display:flex;align-items:center;gap:10px">
+      <!-- Live Website Traffic Pill -->
+      <div class="admin-live-badge" id="admin-live-badge" title="Live visitors browsing your website right now">
+        <span class="live-dot-pulse"></span>
+        <span id="header-live-visitors-count">0</span> online
+      </div>
       <div class="admin-badge">Admin</div>
       <button class="admin-logout-btn" onclick="logoutAdmin()" title="Lock Dashboard" aria-label="Lock Dashboard">&#x1F512; Lock</button>
     </div>
@@ -63,7 +68,7 @@
       &#x1F3EA; Store
     </button>
     <button class="admin-nav-btn" id="nav-btn-reports" onclick="switchAdminSection('reports')">
-      &#x1F4CA; Reports
+      📈 Analytics &amp; Reports
     </button>
   </nav>
 
@@ -252,41 +257,181 @@
     </div>
   </div>
 
-  <!-- ══ REPORTS SECTION ══ -->
+  <!-- ══ ANALYTICS & REPORTS SECTION ══ -->
   <div class="orders-container hidden" id="reports-section">
-    <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Sales Reports</h1>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <label for="report-date-start" style="margin:0;font-size:13px;font-weight:700">From:</label>
-        <input type="date" id="report-date-start" style="padding:4px 8px;font-size:13px;width:auto;" onchange="generateReports()" />
-        <label for="report-date-end" style="margin:0;font-size:13px;font-weight:700">To:</label>
-        <input type="date" id="report-date-end" style="padding:4px 8px;font-size:13px;width:auto;" onchange="generateReports()" />
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;margin-bottom:20px;">
-      <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
-        <div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Sales</div>
-        <div id="report-total-sales" style="font-size:26px;font-weight:900;color:var(--green-700)">&#8369;0</div>
-      </div>
-      <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
-        <div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Orders</div>
-        <div id="report-total-orders" style="font-size:26px;font-weight:900;color:var(--green-700)">0</div>
-      </div>
-      <div class="admin-card" style="margin-bottom:0;padding:16px;text-align:center;">
-        <div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Items Sold</div>
-        <div id="report-total-items" style="font-size:26px;font-weight:900;color:var(--green-700)">0</div>
-      </div>
-    </div>
-
-    <div class="admin-card">
-      <div class="admin-card-header">
-        <div>
-          <div class="admin-card-title">&#x1F3C6; Top Selling Drinks</div>
+    <!-- Top Bar with Title & Date Controls -->
+    <div class="analytics-header-bar">
+      <div>
+        <h1 style="font-family:'Nunito',sans-serif;font-size:21px;font-weight:900;color:var(--green-800);margin:0">
+          📈 Analytics &amp; Live Traffic
+        </h1>
+        <div style="font-size:12.5px;color:var(--text-soft);margin-top:2px;font-weight:600">
+          Real-time visitor presence, checkout funnel, and sales performance
         </div>
       </div>
-      <div class="admin-addons-list" id="report-top-items" style="padding:16px;">
-        <div class="empty-state"><p>No data for selected date range.</p></div>
+
+      <!-- Quick Preset Filter Buttons -->
+      <div class="analytics-filter-controls">
+        <div class="analytics-presets-wrap">
+          <button type="button" class="analytics-preset-btn active" id="preset-today" onclick="setAnalyticsPreset('today')">Today</button>
+          <button type="button" class="analytics-preset-btn" id="preset-yesterday" onclick="setAnalyticsPreset('yesterday')">Yesterday</button>
+          <button type="button" class="analytics-preset-btn" id="preset-7days" onclick="setAnalyticsPreset('7days')">Last 7 Days</button>
+          <button type="button" class="analytics-preset-btn" id="preset-month" onclick="setAnalyticsPreset('month')">This Month</button>
+          <button type="button" class="analytics-preset-btn" id="preset-all" onclick="setAnalyticsPreset('all')">All Time</button>
+        </div>
+
+        <!-- Custom Date Range -->
+        <div class="analytics-date-inputs">
+          <input type="date" id="report-date-start" onchange="onCustomDateChange()" title="Start Date" />
+          <span style="font-size:12px;color:var(--text-soft);font-weight:700">to</span>
+          <input type="date" id="report-date-end" onchange="onCustomDateChange()" title="End Date" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 🟢 LIVE WEBSITE TRAFFIC & ACTIVE USERS CARD -->
+    <div class="live-presence-card" id="live-presence-card">
+      <div class="live-presence-header">
+        <div class="live-presence-title">
+          <span class="live-dot-pulse"></span>
+          <span>Live Shoppers Currently on Website</span>
+          <span class="live-presence-badge" id="live-users-badge">0 Active</span>
+        </div>
+        <div class="live-presence-meta">
+          <span>🛒 <b id="live-cart-count">0</b> with items in cart</span>
+          &middot;
+          <span>⚡ Real-time Firebase Sync</span>
+        </div>
+      </div>
+      <div class="live-users-grid" id="live-users-list">
+        <!-- Built by admin.js in real time -->
+        <div class="live-empty-hint">Waiting for active visitor signals...</div>
+      </div>
+    </div>
+
+    <!-- 📊 CORE KPI METRIC CARDS -->
+    <div class="analytics-kpi-grid">
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">💰 Total Revenue</div>
+        <div class="analytics-kpi-value" id="report-total-sales">&#8369;0</div>
+        <div class="analytics-kpi-sub" id="report-sales-sub">0 completed orders</div>
+      </div>
+
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">📦 Total Orders</div>
+        <div class="analytics-kpi-value" id="report-total-orders">0</div>
+        <div class="analytics-kpi-sub" id="report-orders-sub">All order statuses</div>
+      </div>
+
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">👥 Unique Visitors</div>
+        <div class="analytics-kpi-value" id="report-total-visitors">0</div>
+        <div class="analytics-kpi-sub" id="report-visitors-sub">In selected range</div>
+      </div>
+
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">🎯 Conversion Rate</div>
+        <div class="analytics-kpi-value" id="report-conversion-rate">0%</div>
+        <div class="analytics-kpi-sub" id="report-conversion-sub">Orders &divide; Visitors</div>
+      </div>
+
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">🏷️ Avg. Order Value</div>
+        <div class="analytics-kpi-value" id="report-avg-order-value">&#8369;0</div>
+        <div class="analytics-kpi-sub">Per completed order</div>
+      </div>
+
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">🍵 Drinks Sold</div>
+        <div class="analytics-kpi-value" id="report-total-items">0</div>
+        <div class="analytics-kpi-sub" id="report-items-sub">Total cups ordered</div>
+      </div>
+
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">🎟️ Discounts Given</div>
+        <div class="analytics-kpi-value" id="report-total-discounts" style="color:#b91c1c;">&#8369;0</div>
+        <div class="analytics-kpi-sub" id="report-discounts-sub">Saved by vouchers</div>
+      </div>
+    </div>
+
+    <!-- 📊 DETAILED BREAKDOWN CARDS -->
+    <div class="analytics-charts-grid">
+      <!-- Card 1: Peak Ordering Hours -->
+      <div class="admin-card" style="margin-bottom:0;">
+        <div class="admin-card-header">
+          <div>
+            <div class="admin-card-title">⏰ Peak Ordering Hours</div>
+            <div class="admin-card-subtitle">Distribution of customer orders throughout the day</div>
+          </div>
+        </div>
+        <div id="report-peak-hours" style="padding-top:4px;">
+          <!-- Hourly bar chart populated by admin.js -->
+        </div>
+      </div>
+
+      <!-- Card 2: Fulfillment & Payment Mix -->
+      <div class="admin-card" style="margin-bottom:0;">
+        <div class="admin-card-header">
+          <div>
+            <div class="admin-card-title">🛵 Order Fulfillment &amp; Payments</div>
+            <div class="admin-card-subtitle">Customer preferences for delivery &amp; payment methods</div>
+          </div>
+        </div>
+        <div style="padding-top:4px;">
+          <!-- Delivery vs Pickup -->
+          <div class="split-bar-wrap">
+            <div class="split-bar-labels">
+              <span id="label-delivery-pct">🛵 Delivery: 0% (0)</span>
+              <span id="label-pickup-pct">🏪 Pickup: 0% (0)</span>
+            </div>
+            <div class="split-bar-track">
+              <div class="split-bar-segment-a" id="bar-delivery" style="width:50%"></div>
+              <div class="split-bar-segment-b" id="bar-pickup" style="width:50%; background:#f59e0b;"></div>
+            </div>
+          </div>
+
+          <!-- GCash vs COD -->
+          <div class="split-bar-wrap" style="margin-top:20px;">
+            <div class="split-bar-labels">
+              <span id="label-gcash-pct">📱 GCash: 0% (0)</span>
+              <span id="label-cod-pct">💵 Cash / COD: 0% (0)</span>
+            </div>
+            <div class="split-bar-track">
+              <div class="split-bar-segment-a" id="bar-gcash" style="width:50%; background:#2563eb;"></div>
+              <div class="split-bar-segment-b" id="bar-cod" style="width:50%; background:#059669;"></div>
+            </div>
+          </div>
+
+          <div id="order-status-breakdown" style="margin-top:16px; font-size:12px; color:var(--text-soft); font-weight:600;">
+            <!-- Status pill breakdown -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Top Selling Drinks -->
+      <div class="admin-card" style="margin-bottom:0;">
+        <div class="admin-card-header">
+          <div>
+            <div class="admin-card-title">&#x1F3C6; Top Selling Drinks</div>
+            <div class="admin-card-subtitle">Highest volume drinks ordered in this period</div>
+          </div>
+        </div>
+        <div class="admin-addons-list" id="report-top-items" style="padding:4px 0 0;">
+          <div class="empty-state"><p>No sales data for selected date range.</p></div>
+        </div>
+      </div>
+
+      <!-- Card 4: Voucher & Promo Performance -->
+      <div class="admin-card" style="margin-bottom:0;">
+        <div class="admin-card-header">
+          <div>
+            <div class="admin-card-title">🎟️ Voucher &amp; Promo Usage</div>
+            <div class="admin-card-subtitle">Performance of discount codes &amp; promotional savings</div>
+          </div>
+        </div>
+        <div id="report-voucher-stats" style="padding:4px 0 0;">
+          <!-- Populated by admin.js -->
+        </div>
       </div>
     </div>
   </div>
@@ -705,14 +850,31 @@
             <div class="voucher-switch-info">
               <div class="voucher-switch-title">
                 <span>🛡️</span>
-                <span>Limit 1 Use Per Customer</span>
+                <span>Limit 1 Use Per Customer (Device-Level)</span>
               </div>
               <div class="voucher-switch-desc">
-                Prevents the same customer (phone number or device) from reusing this voucher
+                Limits redemption to 1 order per customer device. Does not affect other users or devices.
               </div>
             </div>
             <div class="switch-control">
-              <input type="checkbox" id="voucher-limit-per-customer" checked />
+              <input type="checkbox" id="voucher-limit-per-customer" checked onchange="window.toggleStrictMobileCard ? window.toggleStrictMobileCard(this.checked) : null" />
+              <span class="switch-slider"></span>
+            </div>
+          </label>
+
+          <!-- Section 7: Optional Strict Mobile Check -->
+          <label class="voucher-switch-card" for="voucher-strict-mobile-limit" id="voucher-strict-mobile-card" style="display:none;background:#f8fafc;border-color:#e2e8f0;margin-top:6px;">
+            <div class="voucher-switch-info">
+              <div class="voucher-switch-title" style="font-size:12.5px;">
+                <span>📱</span>
+                <span>Also Limit by Mobile Number</span>
+              </div>
+              <div class="voucher-switch-desc" style="font-size:11px;">
+                Prevents the same phone number from redeeming this voucher across different devices
+              </div>
+            </div>
+            <div class="switch-control">
+              <input type="checkbox" id="voucher-strict-mobile-limit" />
               <span class="switch-slider"></span>
             </div>
           </label>

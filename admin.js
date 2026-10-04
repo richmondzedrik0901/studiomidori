@@ -80,6 +80,9 @@ let adminAddOns             = {};    // { [id]: addOnData }
 let adminBlackoutDates      = [];    // ['YYYY-MM-DD', ...]
 let currentDrinkImageData   = '';    // Base64 or URL for modal preview
 let adminVouchers           = {};    // { [code]: voucherData }
+let livePresence            = {};    // { [sessionId]: presenceData }
+let dailyVisitors           = {};    // { [dateStr]: { [visitorId]: visitorData } }
+let activeAnalyticsPreset   = 'today';
 
 // -- Navigation Section Switcher -------------------------------------------
 window.switchAdminSection = function(section) {
@@ -712,6 +715,20 @@ function startListeningMenu() {
     adminVouchers = snapshot.exists() ? snapshot.val() : {};
     if (window.renderAdminVouchers) window.renderAdminVouchers();
   });
+
+  // 6. Listen for Live Presence & Active Website Users
+  const presenceRef = ref(db, 'presence');
+  onValue(presenceRef, (snapshot) => {
+    livePresence = snapshot.exists() ? snapshot.val() : {};
+    renderLivePresence();
+  });
+
+  // 7. Listen for Daily Visitors
+  const visitorsRef = ref(db, 'analytics/dailyVisitors');
+  onValue(visitorsRef, (snapshot) => {
+    dailyVisitors = snapshot.exists() ? snapshot.val() : {};
+    if (window.generateReports) window.generateReports();
+  });
 }
 
 // ── Settings Handlers ──
@@ -819,15 +836,18 @@ window.removeBlackoutDate = async function(dateStr) {
 };
 
 // ── Vouchers & Promo Codes Management Module ──
+let editingVoucherCode = null;
+
 function getAllAdminVouchers() {
   const result = {};
   if (adminVouchers && typeof adminVouchers === 'object') {
     Object.entries(adminVouchers).forEach(([k, v]) => {
       if (v && v.code && !v.deleted) {
         const usedByObj = v.usedBy || {};
+        const usedDevicesObj = v.usedDevices || {};
         const count = typeof v.redemptionCount === 'number'
           ? v.redemptionCount
-          : Object.keys(usedByObj).filter(id => !id.startsWith('dev_')).length;
+          : (Object.keys(usedDevicesObj).length || Object.keys(usedByObj).filter(id => !id.startsWith('dev_')).length);
 
         result[v.code.toUpperCase()] = {
           code: v.code.toUpperCase(),
@@ -840,7 +860,10 @@ function getAllAdminVouchers() {
           createdAt: v.createdAt || null,
           active: v.active !== false,
           limitPerCustomer: v.limitPerCustomer !== false,
+          strictMobileLimit: !!v.strictMobileLimit,
           usedBy: usedByObj,
+          usedDevices: usedDevicesObj,
+          usedMobiles: v.usedMobiles || {},
           redemptionCount: count
         };
       }
@@ -935,6 +958,9 @@ window.renderAdminVouchers = function() {
             🔄 Reset
           </button>
           ` : ''}
+          <button type="button" class="admin-voucher-toggle-btn" onclick="openEditVoucherModal('${v.code}')" title="Edit voucher details">
+            ✏️ Edit
+          </button>
           <button type="button" class="admin-voucher-toggle-btn" onclick="toggleVoucherActive('${v.code}', ${v.active !== false})">
             ${v.active !== false ? '⏸ Pause' : '▶ Activate'}
           </button>
@@ -959,12 +985,24 @@ window.generateRandomVoucherCode = function() {
   codeInput.focus();
 };
 
+window.toggleStrictMobileCard = function(show) {
+  const card = document.getElementById('voucher-strict-mobile-card');
+  if (card) card.style.display = show ? 'flex' : 'none';
+};
+
 window.openAddVoucherModal = function() {
+  editingVoucherCode = null;
   const form = document.getElementById('voucher-form');
   if (form) form.reset();
 
   const title = document.getElementById('voucher-modal-title');
   if (title) title.textContent = 'Add New Voucher';
+
+  const saveBtn = document.getElementById('save-voucher-btn');
+  if (saveBtn) {
+    saveBtn.textContent = 'Save Voucher';
+    saveBtn.disabled = false;
+  }
 
   const preview = document.getElementById('voucher-validity-preview');
   if (preview) {
@@ -982,6 +1020,10 @@ window.openAddVoucherModal = function() {
   const limitInput = document.getElementById('voucher-limit-per-customer');
   if (limitInput) limitInput.checked = true;
 
+  const strictInput = document.getElementById('voucher-strict-mobile-limit');
+  if (strictInput) strictInput.checked = false;
+  window.toggleStrictMobileCard(true);
+
   // Set default chip to Never Expires
   document.querySelectorAll('.validity-chip').forEach(btn => {
     const d = parseInt(btn.getAttribute('data-days'));
@@ -996,7 +1038,79 @@ window.openAddVoucherModal = function() {
   window.updateVoucherTypeUI();
 };
 
+window.openEditVoucherModal = function(code) {
+  const all = getAllAdminVouchers();
+  const v = all[code] || (adminVouchers && adminVouchers[code]);
+  if (!v) {
+    showToast(`Voucher "${code}" not found.`);
+    return;
+  }
+
+  editingVoucherCode = code;
+
+  const form = document.getElementById('voucher-form');
+  if (form) form.reset();
+
+  const title = document.getElementById('voucher-modal-title');
+  if (title) title.textContent = `Edit Voucher: ${code}`;
+
+  const saveBtn = document.getElementById('save-voucher-btn');
+  if (saveBtn) {
+    saveBtn.textContent = 'Update Voucher';
+    saveBtn.disabled = false;
+  }
+
+  const codeInput = document.getElementById('voucher-code-input');
+  if (codeInput) codeInput.value = v.code;
+
+  const typeInput = document.getElementById('voucher-type-input');
+  if (typeInput) typeInput.value = v.type || 'fixed';
+
+  const valueInput = document.getElementById('voucher-value-input');
+  if (valueInput) valueInput.value = v.value || 0;
+
+  const minSpendInput = document.getElementById('voucher-min-spend-input');
+  if (minSpendInput) minSpendInput.value = v.minSpend || 0;
+
+  const descInput = document.getElementById('voucher-desc-input');
+  if (descInput) descInput.value = v.description || '';
+
+  const activeInput = document.getElementById('voucher-active-input');
+  if (activeInput) activeInput.checked = v.active !== false;
+
+  const limitInput = document.getElementById('voucher-limit-per-customer');
+  if (limitInput) limitInput.checked = v.limitPerCustomer !== false;
+
+  const strictInput = document.getElementById('voucher-strict-mobile-limit');
+  if (strictInput) strictInput.checked = !!v.strictMobileLimit;
+  window.toggleStrictMobileCard(v.limitPerCustomer !== false);
+
+  const dateInput = document.getElementById('voucher-expiry-date');
+  if (dateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.min = today;
+  }
+
+  if (v.validUntil) {
+    if (dateInput) dateInput.value = v.validUntil;
+    window.onExpiryDateChange();
+  } else if (v.validDays && v.validDays > 0) {
+    window.setQuickValidity(v.validDays);
+  } else {
+    window.setQuickValidity(0);
+  }
+
+  window.updateVoucherTypeUI();
+
+  const modal = document.getElementById('voucher-modal');
+  if (modal) {
+    modal.classList.add('open');
+    modal.classList.add('active');
+  }
+};
+
 window.closeVoucherModal = function() {
+  editingVoucherCode = null;
   const modal = document.getElementById('voucher-modal');
   if (modal) {
     modal.classList.remove('open');
@@ -1136,6 +1250,7 @@ window.saveVoucher = async function(e) {
   const descInput = document.getElementById('voucher-desc-input');
   const activeInput = document.getElementById('voucher-active-input');
   const limitInput = document.getElementById('voucher-limit-per-customer');
+  const strictInput = document.getElementById('voucher-strict-mobile-limit');
   const saveBtn = document.getElementById('save-voucher-btn');
 
   const code = (codeInput?.value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
@@ -1163,7 +1278,11 @@ window.saveVoucher = async function(e) {
     validDays = daysVal;
   }
 
-  const existingVoucher = (adminVouchers && adminVouchers[code]) || {};
+  const isEditing = !!editingVoucherCode;
+  const oldCode = editingVoucherCode;
+  const existingVoucher = (oldCode && adminVouchers && adminVouchers[oldCode])
+    || (adminVouchers && adminVouchers[code])
+    || {};
 
   const payload = {
     code,
@@ -1174,7 +1293,10 @@ window.saveVoucher = async function(e) {
     createdAt: existingVoucher.createdAt || new Date().toISOString(),
     active: activeInput ? activeInput.checked : true,
     limitPerCustomer: limitInput ? limitInput.checked : true,
+    strictMobileLimit: limitInput && limitInput.checked && strictInput ? strictInput.checked : false,
     usedBy: existingVoucher.usedBy || {},
+    usedDevices: existingVoucher.usedDevices || {},
+    usedMobiles: existingVoucher.usedMobiles || {},
     redemptionCount: existingVoucher.redemptionCount || 0,
     updatedAt: Date.now()
   };
@@ -1184,20 +1306,26 @@ window.saveVoucher = async function(e) {
 
   if (saveBtn) {
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
+    saveBtn.textContent = isEditing ? 'Updating...' : 'Saving...';
   }
 
   try {
+    // If editing and code was renamed, delete the old node
+    if (isEditing && oldCode && oldCode !== code) {
+      await remove(ref(db, `vouchers/${oldCode}`));
+    }
+
     await set(ref(db, `vouchers/${code}`), payload);
+    editingVoucherCode = null;
     window.closeVoucherModal();
-    showToast(`Voucher ${code} saved successfully! ✓`);
+    showToast(`Voucher "${code}" ${isEditing ? 'updated' : 'saved'} successfully! ✓`);
   } catch (err) {
     console.error('Failed to save voucher:', err);
     showToast('Failed to save voucher. Check connection.');
   } finally {
     if (saveBtn) {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save Voucher';
+      saveBtn.textContent = isEditing ? 'Update Voucher' : 'Save Voucher';
     }
   }
 };
@@ -1229,10 +1357,12 @@ window.deleteVoucher = async function(code) {
 };
 
 window.resetVoucherUsage = async function(code) {
-  if (!confirm(`Reset redemption history for voucher "${code}"?\n\nThis will allow previously redeemed customers to use it again.`)) return;
+  if (!confirm(`Reset redemption history for voucher "${code}"?\n\nThis will allow previously redeemed customers/devices to use it again.`)) return;
   try {
     await update(ref(db, `vouchers/${code}`), {
       usedBy: null,
+      usedDevices: null,
+      usedMobiles: null,
       redemptionCount: 0,
       updatedAt: Date.now()
     });
@@ -2044,78 +2174,350 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// ── Live Presence & Real-time Traffic Tracking ──────────────────────
+function renderLivePresence() {
+  const now = Date.now();
+  // Filter active presence records within the last 3 minutes (180,000 ms)
+  const validUsers = Object.values(livePresence).filter(u => u && (now - (u.lastSeen || 0)) < 180000);
+
+  // 1. Update Header Live Badge
+  const headerCount = document.getElementById('header-live-visitors-count');
+  if (headerCount) headerCount.textContent = validUsers.length;
+
+  // 2. Update Live Card Header Badges
+  const badge = document.getElementById('live-users-badge');
+  if (badge) badge.textContent = `${validUsers.length} Active`;
+
+  const cartCount = document.getElementById('live-cart-count');
+  const usersWithCart = validUsers.filter(u => (u.cartQty || 0) > 0 || (u.stage && u.stage.toLowerCase().includes('cart')));
+  if (cartCount) cartCount.textContent = usersWithCart.length;
+
+  const container = document.getElementById('live-users-list');
+  if (!container) return;
+
+  if (validUsers.length === 0) {
+    container.innerHTML = `
+      <div class="live-empty-hint">
+        🍃 No active shoppers on the website right now. Real-time active visitors will appear here automatically as they browse drinks or order!
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = validUsers.map((u) => {
+    const isMobile = u.device === 'Mobile';
+    const icon = isMobile ? '📱' : '💻';
+    const stage = u.stage || 'Browsing Menu';
+    const secondsAgo = Math.max(0, Math.floor((now - (u.lastSeen || now)) / 1000));
+    const timeText = secondsAgo < 20 ? 'Active now' : `${secondsAgo}s ago`;
+
+    let stageBadgeColor = '#059669';
+    if (stage.includes('Checkout')) {
+      stageBadgeColor = '#7c3aed';
+    } else if (stage.includes('Cart')) {
+      stageBadgeColor = '#d97706';
+    } else if (stage.includes('Placed Order')) {
+      stageBadgeColor = '#0284c7';
+    }
+
+    return `
+      <div class="live-user-pill">
+        <div class="live-user-icon">${icon}</div>
+        <div class="live-user-details">
+          <div class="live-user-stage" style="color:${stageBadgeColor};" title="${stage}">${stage}</div>
+          <div class="live-user-meta">${u.device || 'Visitor'} &middot; <span style="color:#059669;font-weight:700;">${timeText}</span></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Analytics Time Filter Presets ────────────────────────────────────
+window.setAnalyticsPreset = function(preset) {
+  activeAnalyticsPreset = preset;
+  document.querySelectorAll('.analytics-preset-btn').forEach(b => {
+    b.classList.toggle('active', b.id === `preset-${preset}`);
+  });
+
+  const startInput = document.getElementById('report-date-start');
+  const endInput = document.getElementById('report-date-end');
+  if (!startInput || !endInput) return;
+
+  const now = new Date();
+  const formatD = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const todayStr = formatD(now);
+
+  if (preset === 'today') {
+    startInput.value = todayStr;
+    endInput.value = todayStr;
+  } else if (preset === 'yesterday') {
+    const yest = new Date(now);
+    yest.setDate(yest.getDate() - 1);
+    const yestStr = formatD(yest);
+    startInput.value = yestStr;
+    endInput.value = yestStr;
+  } else if (preset === '7days') {
+    const past7 = new Date(now);
+    past7.setDate(past7.getDate() - 6);
+    startInput.value = formatD(past7);
+    endInput.value = todayStr;
+  } else if (preset === 'month') {
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    startInput.value = formatD(firstOfMonth);
+    endInput.value = todayStr;
+  } else if (preset === 'all') {
+    startInput.value = '2024-01-01';
+    endInput.value = todayStr;
+  }
+
+  window.generateReports();
+};
+
+window.onCustomDateChange = function() {
+  document.querySelectorAll('.analytics-preset-btn').forEach(b => b.classList.remove('active'));
+  window.generateReports();
+};
+
+// ── Analytics Report Engine ──────────────────────────────────────────
 window.generateReports = function() {
   const startInput = document.getElementById('report-date-start');
   const endInput = document.getElementById('report-date-end');
   if (!startInput || !endInput) return;
-  
-  // Default: from the 1st of this month to today (inclusive)
+
+  renderLivePresence();
+
+  // Default: Today if not set
   if (!startInput.value) {
     const d = new Date();
-    d.setDate(1);
     startInput.value = d.toISOString().split('T')[0];
   }
   if (!endInput.value) {
     endInput.value = new Date().toISOString().split('T')[0];
   }
-  
+
   const startStr = startInput.value;
   const endStr = endInput.value;
-  
-  const reportOrders = allOrders.filter(o => {
-    if (o.status !== 'COMPLETED') return false; 
+
+  // Filter orders in date range
+  const rangeOrders = allOrders.filter(o => {
     const d = o.orderDate || new Date(o.timestamp || Date.now()).toISOString().split('T')[0];
     return d >= startStr && d <= endStr;
   });
-  
-  let totalSales = 0;
-  let totalOrdersCount = reportOrders.length;
-  let totalItemsCount = 0;
-  
-  const itemCounts = {};
-  
-  reportOrders.forEach(o => {
-    totalSales += (o.total || 0);
-    
-    (o.items || []).forEach(item => {
-      totalItemsCount += item.qty || 1;
-      if (!itemCounts[item.name]) {
-        itemCounts[item.name] = { qty: 0, revenue: 0 };
+
+  const completedOrders = rangeOrders.filter(o => o.status === 'COMPLETED');
+
+  // 1. Sales & Order Totals
+  const totalSales = completedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  const totalOrdersCount = rangeOrders.length;
+  const completedOrdersCount = completedOrders.length;
+  const avgOrderValue = completedOrdersCount > 0 ? Math.round(totalSales / completedOrdersCount) : 0;
+
+  // 2. Unique Visitors Calculation from dailyVisitors
+  const uniqueVisitorKeys = new Set();
+  if (dailyVisitors && typeof dailyVisitors === 'object') {
+    Object.entries(dailyVisitors).forEach(([dateStr, visitorsObj]) => {
+      if (dateStr >= startStr && dateStr <= endStr && visitorsObj && typeof visitorsObj === 'object') {
+        Object.keys(visitorsObj).forEach(id => uniqueVisitorKeys.add(id));
       }
-      itemCounts[item.name].qty += item.qty || 1;
-      itemCounts[item.name].revenue += ((item.unitPrice || item.price || 0) * (item.qty || 1));
     });
+  }
+  const uniqueVisitorsCount = Math.max(uniqueVisitorKeys.size, rangeOrders.length);
+  const conversionRate = uniqueVisitorsCount > 0 ? ((completedOrdersCount / uniqueVisitorsCount) * 100).toFixed(1) : 0;
+
+  // 3. Total Items Sold & Discounts Given
+  let totalItemsCount = 0;
+  let totalDiscountsGiven = 0;
+  const itemCounts = {};
+  const voucherUsageMap = {};
+
+  rangeOrders.forEach(o => {
+    if (o.discountAmount && o.discountAmount > 0) {
+      totalDiscountsGiven += Number(o.discountAmount) || 0;
+    }
+    if (o.voucherCode) {
+      const vCode = String(o.voucherCode).toUpperCase();
+      if (!voucherUsageMap[vCode]) voucherUsageMap[vCode] = { count: 0, savings: 0 };
+      voucherUsageMap[vCode].count++;
+      voucherUsageMap[vCode].savings += Number(o.discountAmount) || 0;
+    }
+
+    if (o.status === 'COMPLETED') {
+      (o.items || []).forEach(item => {
+        const qty = item.qty || 1;
+        totalItemsCount += qty;
+        if (!itemCounts[item.name]) {
+          itemCounts[item.name] = { qty: 0, revenue: 0 };
+        }
+        itemCounts[item.name].qty += qty;
+        itemCounts[item.name].revenue += ((item.unitPrice || item.price || 0) * qty);
+      });
+    }
   });
-  
+
+  // Update KPI Cards
   const tsEl = document.getElementById('report-total-sales');
   if (tsEl) tsEl.textContent = `₱${totalSales.toLocaleString()}`;
+  const ssEl = document.getElementById('report-sales-sub');
+  if (ssEl) ssEl.textContent = `${completedOrdersCount} completed order${completedOrdersCount === 1 ? '' : 's'}`;
+
   const toEl = document.getElementById('report-total-orders');
   if (toEl) toEl.textContent = totalOrdersCount;
+  const osEl = document.getElementById('report-orders-sub');
+  if (osEl) osEl.textContent = `${rangeOrders.filter(o => o.status === 'NEW').length} new · ${rangeOrders.filter(o => o.status === 'PREPARING').length} preparing`;
+
+  const tvEl = document.getElementById('report-total-visitors');
+  if (tvEl) tvEl.textContent = uniqueVisitorsCount.toLocaleString();
+  const vsEl = document.getElementById('report-visitors-sub');
+  if (vsEl) vsEl.textContent = `${startStr === endStr ? "Today's" : 'Date range'} unique visitors`;
+
+  const crEl = document.getElementById('report-conversion-rate');
+  if (crEl) crEl.textContent = `${conversionRate}%`;
+
+  const aovEl = document.getElementById('report-avg-order-value');
+  if (aovEl) aovEl.textContent = `₱${avgOrderValue.toLocaleString()}`;
+
   const tiEl = document.getElementById('report-total-items');
-  if (tiEl) tiEl.textContent = totalItemsCount;
-  
-  const topItemsList = document.getElementById('report-top-items');
-  if (!topItemsList) return;
-  
-  if (Object.keys(itemCounts).length === 0) {
-    topItemsList.innerHTML = '<div class="empty-state"><p>No sales data for selected date range.</p></div>';
-    return;
+  if (tiEl) tiEl.textContent = totalItemsCount.toLocaleString();
+
+  const tdEl = document.getElementById('report-total-discounts');
+  if (tdEl) tdEl.textContent = totalDiscountsGiven > 0 ? `-₱${totalDiscountsGiven.toLocaleString()}` : '₱0';
+
+  // 4. Peak Ordering Hours Chart
+  const hourBuckets = {
+    '09:00 - 11:00 AM': 0,
+    '11:00 AM - 01:00 PM': 0,
+    '01:00 - 03:00 PM': 0,
+    '03:00 - 05:00 PM': 0,
+    '05:00 - 07:00 PM': 0,
+    '07:00 - 09:00 PM': 0,
+  };
+
+  rangeOrders.forEach(o => {
+    let t = o.preferredTime;
+    if (!t && o.timestamp) {
+      const d = new Date(o.timestamp);
+      t = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    if (!t) return;
+    const h = parseInt(t.split(':')[0]);
+    if (h >= 9 && h < 11) hourBuckets['09:00 - 11:00 AM']++;
+    else if (h >= 11 && h < 13) hourBuckets['11:00 AM - 01:00 PM']++;
+    else if (h >= 13 && h < 15) hourBuckets['01:00 - 03:00 PM']++;
+    else if (h >= 15 && h < 17) hourBuckets['03:00 - 05:00 PM']++;
+    else if (h >= 17 && h < 19) hourBuckets['05:00 - 07:00 PM']++;
+    else if (h >= 19 && h <= 21) hourBuckets['07:00 - 09:00 PM']++;
+  });
+
+  const maxHourOrders = Math.max(1, ...Object.values(hourBuckets));
+  const peakHoursContainer = document.getElementById('report-peak-hours');
+  if (peakHoursContainer) {
+    peakHoursContainer.innerHTML = Object.entries(hourBuckets).map(([label, count]) => {
+      const pct = Math.round((count / maxHourOrders) * 100);
+      return `
+        <div class="hourly-chart-bar-wrap">
+          <div class="hourly-chart-label">${label.split(' - ')[0]}</div>
+          <div class="hourly-chart-track">
+            <div class="hourly-chart-fill" style="width:${pct}%"></div>
+          </div>
+          <div class="hourly-chart-val">${count} ${count === 1 ? 'order' : 'orders'}</div>
+        </div>
+      `;
+    }).join('');
   }
-  
-  const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1].qty - a[1].qty);
-  
-  topItemsList.innerHTML = sortedItems.map(([name, data], idx) => {
-    return `
-      <div class="admin-addon-item" style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:26px;height:26px;border-radius:50%;background:var(--green-100);color:var(--green-700);display:grid;place-items:center;font-weight:900;font-size:12px">${idx + 1}</div>
-          <div class="admin-addon-name" style="margin:0">${name}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-weight:900;color:var(--green-700);font-size:15px">${data.qty} sold</div>
-          <div style="font-size:12px;color:var(--text-soft)">₱${data.revenue.toLocaleString()} revenue</div>
-        </div>
+
+  // 5. Fulfillment & Payment Mix
+  const deliveryCount = rangeOrders.filter(o => o.deliveryType === 'delivery').length;
+  const pickupCount = rangeOrders.filter(o => o.deliveryType !== 'delivery').length;
+  const delTotal = deliveryCount + pickupCount;
+  const delPct = delTotal > 0 ? Math.round((deliveryCount / delTotal) * 100) : 50;
+  const pickPct = 100 - delPct;
+
+  const barDel = document.getElementById('bar-delivery');
+  if (barDel) barDel.style.width = `${delPct}%`;
+  const barPick = document.getElementById('bar-pickup');
+  if (barPick) barPick.style.width = `${pickPct}%`;
+  const lblDel = document.getElementById('label-delivery-pct');
+  if (lblDel) lblDel.textContent = `🛵 Delivery: ${delPct}% (${deliveryCount})`;
+  const lblPick = document.getElementById('label-pickup-pct');
+  if (lblPick) lblPick.textContent = `🏪 Pickup: ${pickPct}% (${pickupCount})`;
+
+  const gcashCount = rangeOrders.filter(o => o.paymentMethod === 'GCash').length;
+  const codCount = rangeOrders.filter(o => o.paymentMethod !== 'GCash').length;
+  const payTotal = gcashCount + codCount;
+  const gcashPct = payTotal > 0 ? Math.round((gcashCount / payTotal) * 100) : 50;
+  const codPct = 100 - gcashPct;
+
+  const barGcash = document.getElementById('bar-gcash');
+  if (barGcash) barGcash.style.width = `${gcashPct}%`;
+  const barCod = document.getElementById('bar-cod');
+  if (barCod) barCod.style.width = `${codPct}%`;
+  const lblGcash = document.getElementById('label-gcash-pct');
+  if (lblGcash) lblGcash.textContent = `📱 GCash: ${gcashPct}% (${gcashCount})`;
+  const lblCod = document.getElementById('label-cod-pct');
+  if (lblCod) lblCod.textContent = `💵 COD / Cash: ${codPct}% (${codCount})`;
+
+  const statusBreakdown = document.getElementById('order-status-breakdown');
+  if (statusBreakdown) {
+    statusBreakdown.innerHTML = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;">🆕 ${rangeOrders.filter(o => o.status === 'NEW').length} New</span>
+        <span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;">👩‍🍳 ${rangeOrders.filter(o => o.status === 'PREPARING').length} Preparing</span>
+        <span style="background:#dcfce7;color:#15803d;padding:3px 8px;border-radius:6px;">✅ ${rangeOrders.filter(o => o.status === 'READY').length} Ready</span>
+        <span style="background:#f3f4f6;color:#374151;padding:3px 8px;border-radius:6px;">🎉 ${completedOrdersCount} Completed</span>
       </div>
     `;
-  }).join('');
+  }
+
+  // 6. Top Selling Drinks
+  const topItemsList = document.getElementById('report-top-items');
+  if (topItemsList) {
+    if (Object.keys(itemCounts).length === 0) {
+      topItemsList.innerHTML = '<div class="empty-state"><p>No completed drink orders in this period.</p></div>';
+    } else {
+      const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1].qty - a[1].qty);
+      const medals = ['🥇', '🥈', '🥉'];
+      topItemsList.innerHTML = sortedItems.map(([name, data], idx) => {
+        const medalOrNum = idx < 3 ? medals[idx] : `#${idx + 1}`;
+        return `
+          <div class="admin-addon-item" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="font-size:16px;width:28px;text-align:center;">${medalOrNum}</div>
+              <div class="admin-addon-name" style="margin:0;font-weight:700;">${name}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:900;color:var(--green-700);font-size:14px">${data.qty} sold</div>
+              <div style="font-size:11.5px;color:var(--text-soft)">₱${data.revenue.toLocaleString()} sales</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 7. Voucher Stats
+  const voucherStatsContainer = document.getElementById('report-voucher-stats');
+  if (voucherStatsContainer) {
+    const voucherEntries = Object.entries(voucherUsageMap);
+    if (voucherEntries.length === 0) {
+      voucherStatsContainer.innerHTML = '<div class="empty-state"><p>No vouchers redeemed in this date range.</p></div>';
+    } else {
+      voucherStatsContainer.innerHTML = voucherEntries.map(([code, data]) => `
+        <div class="admin-addon-item" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:monospace;font-weight:900;background:var(--green-50);padding:2px 8px;border-radius:6px;border:1px solid var(--green-300);color:var(--green-800);">🎟️ ${code}</span>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:var(--green-700);font-size:13px">${data.count} redeemed</div>
+            <div style="font-size:11.5px;color:#b91c1c;">-₱${data.savings.toLocaleString()} saved</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
 };
