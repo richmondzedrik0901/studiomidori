@@ -1,6 +1,7 @@
 {
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/order", "destination": "/order.html" },
     { "source": "/admin", "destination": "/admin.html" }
   ]
 }

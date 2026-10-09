@@ -3,19 +3,19 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
-    content="Order your favourite matcha drinks from Studio Midori. Pickup or delivery available." />
-  <title>Order – Studio Midori 🍵</title>
+    content="Studio Midori – Handcrafted ceremonial matcha & dark roasted hojicha drinks whisked fresh in Bangued, Abra. Store pickup & doorstep delivery available." />
+  <title>Studio Midori 🍵 – Craft Matcha & Hojicha</title>
 
   <!-- Open Graph / Link Preview Meta Tags -->
-  <meta property="og:title" content="Order – Studio Midori 🍵" />
+  <meta property="og:title" content="Studio Midori 🍵 – Freshly Whisked Matcha & Hojicha" />
   <meta property="og:description"
-    content="Order your favourite matcha drinks from Studio Midori. Pickup or delivery available." />
+    content="Authentic Japanese ceremonial matcha & roasted hojicha, handcrafted with care in Bangued, Abra. Order online for pickup or delivery." />
   <meta property="og:image" content="https://studio-midori.vercel.app/og-banner.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Studio Midori – freshly whisked matcha & hojicha" />
+  <meta property="og:image:alt" content="Studio Midori – Freshly Whisked Matcha & Hojicha" />
   <meta property="og:url" content="https://studio-midori.vercel.app/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -29,767 +29,540 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Studio Midori" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="preload" as="image" href="/img/logo.webp" type="image/webp" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
 
+  <!-- Preload Essential Assets -->
+  <link rel="preload" as="image" href="/img/logo.webp" type="image/webp" />
+  <link rel="preload" as="image" href="/img/banner.webp" type="image/webp" />
+
+  <!-- Fonts & Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="premium-ui.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="stylesheet" href="home.css" />
 </head>
 
 <body>
 
-  <!-- ── Header ── -->
-  <header class="site-header">
-    <div class="site-header-inner">
-      <div class="site-header-spacer" aria-hidden="true"></div>
-      <div class="site-header-logo-wrap">
+  <!-- ── 1. Top Announcement Bar ── -->
+  <div class="top-announcement-bar" id="top-announcement-bar">
+    <span class="announcement-pill">Schedule</span>
+    <span id="top-announcement-text">
+      <strong>📌 Schedule:</strong> Mon–Thu advance orders only &nbsp;·&nbsp; Fri–Sun same-day &amp; advance
+    </span>
+    <a href="/order" title="Order online now">Order Online &rarr;</a>
+  </div>
+
+  <!-- ── 2. Homepage Header Navigation ── -->
+  <header class="home-nav-header" id="home-nav-header">
+    <div class="home-nav-container">
+      <a href="/" class="home-brand-link" title="Studio Midori – Home">
         <picture>
           <source srcset="/img/logo.webp" type="image/webp" />
-          <img src="/img/logo.png" alt="Studio Midori" class="logo-img" decoding="async" fetchpriority="high" />
+          <img src="/img/logo.png" alt="Studio Midori" class="home-nav-logo" fetchpriority="high" />
         </picture>
+      </a>
+
+      <nav class="home-desktop-nav" aria-label="Main Navigation">
+        <ul class="home-nav-links">
+          <li><a href="#menu">Our Drinks</a></li>
+          <li><a href="#story">Our Story</a></li>
+          <li><a href="#location">Location &amp; Hours</a></li>
+          <li><a href="#reviews">Reviews</a></li>
+        </ul>
+      </nav>
+
+      <div class="home-nav-actions" id="home-nav-actions">
+        <a href="/order" class="home-order-cta-btn" id="home-order-cta-btn">
+          <span>Order Online</span>
+          <img src="/icons/ui/bamboo-whisk.webp" style="width:18px;height:18px;object-fit:contain;" alt="" />
+        </a>
+        <button type="button" class="home-nav-hamburger" id="home-nav-hamburger" aria-label="Open mobile menu">
+          <span class="hamburger-icon">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+          </span>
+        </button>
       </div>
-      <button class="header-cart-btn" id="header-cart-btn" type="button" aria-label="View Shopping Cart" title="View Cart">
-        <span class="header-cart-icon-wrap">
-          <img src="/icons/ui/cart.webp" alt="Cart" class="header-cart-icon-img" />
-          <span class="header-cart-badge hidden" id="header-cart-badge">0</span>
-        </span>
-        <span class="header-cart-label">Cart</span>
-      </button>
     </div>
   </header>
 
-  <!-- ══════════════════════════════════════════
-       ORDER FORM AREA
-  ══════════════════════════════════════════ -->
-  <div id="order-form-area">
-    <div class="container">
-
-
-      <!-- ── Active Order Alert Banner (if customer has an active order) ── -->
-      <div id="active-order-banner-container"></div>
-
-      <!-- ── Drinks ── -->
-      <!-- WIZARD STEP 1: DRINKS -->
-      <div id="wizard-step-1" class="wizard-step">
-        <div style="height:14px"></div>
-        <div class="card">
-          <div class="card-header">
-            <div class="step-num">1</div>
-            <div>
-              <h2>Choose Your Drinks</h2>
-              <div class="card-header-sub">Select drinks and customise each one</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <!-- ── Category Filter Tabs (Matcha vs Hojicha) ── -->
-            <div class="menu-category-tabs" id="menu-category-tabs" role="tablist" aria-label="Filter drinks by series">
-              <button class="category-tab-btn active" onclick="setMenuCategory('all')" id="cat-tab-all">
-                <img src="/icons/ui/leaves.webp" class="tab-ui-icon" alt="" /> All Drinks
-              </button>
-              <button class="category-tab-btn" onclick="setMenuCategory('matcha')" id="cat-tab-matcha">
-                <img src="/icons/ui/matcha-bowl.webp" class="tab-ui-icon" alt="" /> Matcha Series
-              </button>
-              <button class="category-tab-btn" onclick="setMenuCategory('hojicha')" id="cat-tab-hojicha">
-                <img src="/icons/ui/drink-hojicha.webp" class="tab-ui-icon" alt="" /> Hojicha Series
-              </button>
-            </div>
-
-            <div id="product-list">
-              <!-- Skeleton loading placeholders (cleared by app.js) -->
-              <div class="skeleton-card">
-                <div class="skeleton-img"></div>
-                <div class="skeleton-body">
-                  <div class="skeleton-line w70"></div>
-                  <div class="skeleton-line w50"></div>
-                  <div class="skeleton-line w30"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+  <!-- ── Mobile Navigation Drawer ── -->
+  <div class="mobile-nav-drawer" id="mobile-nav-drawer" aria-hidden="true">
+    <div class="mobile-nav-panel">
+      <div>
+        <div class="mobile-nav-header-row">
+          <picture>
+            <source srcset="/img/logo.webp" type="image/webp" />
+            <img src="/img/logo.png" alt="Studio Midori" style="height:42px;width:auto;" />
+          </picture>
+          <button type="button" class="mobile-nav-close-btn" id="mobile-nav-close" aria-label="Close menu">&times;</button>
         </div>
-
-        <div class="step-1-checkout-bar">
-          <button type="button" class="place-order-btn" id="step-1-next-btn" onclick="window.openCartDrawer()">
-            <span class="step-btn-text"><img src="/icons/ui/cart.webp" class="btn-ui-icon" alt="" /> View Cart &amp; Checkout</span>
-            <span id="step-1-count-pill" class="step-count-pill">0 drinks</span>
-          </button>
-        </div>
-      </div><!-- /wizard-step-1 -->
-
-      <!-- WIZARD STEP 2: LOGISTICS -->
-      <div id="wizard-step-2" class="wizard-step hidden">
-        <div style="height:14px"></div>
-        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:12px"
-          onclick="window.nextWizardStep(1)">
-          &#8592; Back to Menu
-        </button>
-
-        <!-- ── Cart Quick Strip (click to review or edit cart) ── -->
-        <div class="cart-quick-summary-strip" id="cart-quick-strip" onclick="window.openCartDrawer()" title="Click to view cart items">
-          <div class="cart-strip-left">
-            <img src="/icons/ui/cart.webp" class="cart-strip-icon-img" alt="Cart" />
-            <div>
-              <div class="cart-strip-title">Your Cart (<span id="strip-cart-count">0 drinks</span>)</div>
-              <div class="cart-strip-sub" id="strip-cart-sub">Subtotal: ₱0</div>
-            </div>
-          </div>
-          <span class="cart-strip-btn">Review Cart ↗</span>
-        </div>
-
-        <!-- ── Date & Time ── -->
-        <div class="card">
-          <div class="card-header">
-            <div class="step-num">2</div>
-            <div>
-              <h2>When?</h2>
-              <div class="card-header-sub" id="when-card-sub">Pick your preferred date &amp; pick-up time</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="form-group" style="margin-bottom:16px;">
-              <div class="toggle-group">
-                <input type="radio" name="order-timing" id="timing-today" value="today" checked />
-                <label for="timing-today" id="label-timing-today"><img src="/icons/ui/clock.webp" class="toggle-ui-icon" alt="" /> Order Now</label>
-                <input type="radio" name="order-timing" id="timing-advance" value="advance" />
-                <label for="timing-advance"><img src="/icons/ui/calendar.webp" class="toggle-ui-icon" alt="" /> Advance Order</label>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="date-time-container">
-              <div class="form-group" style="margin-bottom:0" id="date-group">
-                <label for="order-date">Date <span class="required">*</span></label>
-                <input type="date" id="order-date" />
-              </div>
-              <div class="form-group" style="margin-bottom:0" id="time-group">
-                <label for="preferred-time" id="preferred-time-label">Pick-up Time <span class="required">*</span></label>
-                <input type="time" id="preferred-time" min="09:00" max="21:00" value="10:00" required />
-              </div>
-            </div>
-            <div id="order-date-hint" class="order-date-hint" style="margin-top:10px"></div>
-            <div class="schedule-info-box" style="margin-top:10px">
-              <strong>📌 Schedule: </strong>
-              <span style="font-size:13px"><strong>Mon–Thu:</strong> Advance orders only &nbsp;·&nbsp;
-                <strong>Fri–Sun:</strong> Today or advance</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Pickup or Delivery ── -->
-        <div class="card">
-          <div class="card-header">
-            <div class="step-num">3</div>
-            <div>
-              <h2>Order Type</h2>
-              <div class="card-header-sub">Store pickup or home delivery</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="form-group">
-              <div class="toggle-group">
-                <input type="radio" name="delivery-type" id="type-pickup" value="pickup" checked />
-                <label for="type-pickup"><img src="/icons/ui/bag.webp" class="toggle-ui-icon" alt="" /> Store Pickup</label>
-                <input type="radio" name="delivery-type" id="type-delivery" value="delivery" />
-                <label for="type-delivery" id="label-type-delivery"><img src="/icons/ui/scooter.webp" class="toggle-ui-icon" alt="" /> Delivery</label>
-              </div>
-            </div>
-
-            <!-- Pickup Fields -->
-            <div id="pickup-fields">
-              <div class="form-group">
-                <label>Store Location</label>
-                <div style="border-radius: 12px; overflow: hidden; margin-top: 8px; border: 1px solid var(--border);">
-                  <iframe width="100%" height="250" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"
-                    src="https://maps.google.com/maps?q=Aspacio%20Panciteria,%20Mabini%20St,%20Bangued,%20Abra&t=&z=16&ie=UTF8&iwloc=&output=embed">
-                  </iframe>
-                </div>
-                <p class="map-help-text" style="margin-top: 8px; text-align: center;">Aspacio Panciteria, Mabini St,
-                  Zone
-                  3, Bangued, Abra</p>
-              </div>
-            </div>
-
-            <!-- Delivery Fields (hidden by default) -->
-            <div id="delivery-fields" class="hidden">
-              <div class="form-group">
-                <div class="map-label-row">
-                  <label for="delivery-map">Pin Your Delivery Location <span class="required">*</span></label>
-                  <button type="button" id="btn-use-gps" class="btn-locate-me" title="Use current GPS location">
-                    <img src="/icons/ui/location.webp" class="btn-ui-icon-sm" alt="" /> Use My Location
-                  </button>
-                </div>
-                <p class="map-help-text">Required &#8212; tap the map, drag the pin, or use GPS to mark your exact
-                  delivery spot.</p>
-
-                <div id="delivery-map-container" class="delivery-map-wrapper">
-                  <div id="delivery-map"></div>
-                  <div id="map-pin-status" class="map-status-pill">
-                    📍 <span id="pin-coords-display">Tap map to drop a pin</span>
-                  </div>
-                </div>
-                <input type="hidden" id="delivery-lat" />
-                <input type="hidden" id="delivery-lng" />
-              </div>
-
-
-              <div class="form-group">
-                <label for="delivery-address">Street Address / Landmark <span class="required">*</span></label>
-                <div style="position:relative;">
-                  <input type="text" id="delivery-address" placeholder="House #, Street, Barangay, or Landmark"
-                    autocomplete="off" />
-                  <ul id="address-suggestions" style="
-                  display:none;
-                  position:absolute;
-                  top:100%;
-                  left:0;
-                  right:0;
-                  z-index:9999;
-                  margin:4px 0 0;
-                  padding:0;
-                  list-style:none;
-                  background:#fff;
-                  border:1.5px solid var(--border);
-                  border-radius:var(--radius-sm);
-                  box-shadow:0 8px 24px rgba(0,0,0,.12);
-                  max-height:220px;
-                  overflow-y:auto;
-                "></ul>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="delivery-notes">Delivery Notes <span
-                    style="font-weight:500;color:var(--text-soft)">(optional)</span></label>
-                <textarea id="delivery-notes"
-                  placeholder="Gate code, drop-off instructions, or any special request…"></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <button type="button" class="place-order-btn" style="margin-top:20px" onclick="window.nextWizardStep(3)">
-          Next: Checkout &#10132;
-        </button>
-      </div><!-- /wizard-step-2 -->
-
-      <!-- WIZARD STEP 3: CHECKOUT -->
-      <div id="wizard-step-3" class="wizard-step hidden">
-        <div style="height:14px"></div>
-        <button type="button" class="btn-secondary" style="width:100%; margin-bottom:16px"
-          onclick="window.nextWizardStep(2)">
-          &#8592; Back to How &amp; When
-        </button>
-
-        <!-- ── Customer Info ── -->
-        <div class="card" id="customer-details-card">
-          <div class="card-header">
-            <div class="step-num">4</div>
-            <div>
-              <h2>Your Details</h2>
-              <div class="card-header-sub">Name and mobile number</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="form-group">
-              <label for="customer-name">Full Name <span class="required">*</span></label>
-              <input type="text" id="customer-name" placeholder="e.g. Maria Santos" autocomplete="name" />
-            </div>
-            <div class="form-group">
-              <label for="mobile-number">Mobile Number <span class="required">*</span></label>
-              <input type="tel" id="mobile-number" placeholder="09958303155 / +639958303155 / 9958303155" autocomplete="tel" inputmode="tel" />
-              <div style="font-size:11px;color:var(--text-soft);margin-top:3px;font-weight:600">Accepted: 09XXXXXXXXX, +639XXXXXXXXX, or 9XXXXXXXXX (numbers only)</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Payment Method ── -->
-        <div class="card">
-          <div class="card-header">
-            <div class="step-num">5</div>
-            <div>
-              <h2>Payment Method</h2>
-              <div class="card-header-sub">Choose how you want to pay</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="form-group" style="margin-bottom:0">
-              <div class="toggle-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <input type="radio" name="payment-method" id="pay-cod" value="COD" checked />
-                <label for="pay-cod" style="padding:10px;text-align:center;"><img src="/icons/ui/card.webp" class="toggle-ui-icon" alt="" /> Cash / COD</label>
-                <input type="radio" name="payment-method" id="pay-gcash" value="GCash" />
-                <label for="pay-gcash" style="padding:10px;text-align:center;"><img src="/icons/ui/shield.webp" class="toggle-ui-icon" alt="" /> GCash</label>
-              </div>
-            </div>
-            <div id="gcash-instructions" class="hidden"
-              style="margin-top:16px; padding:16px; background:var(--green-50); border:1px solid var(--green-200); border-radius:12px; text-align:center;">
-              <p style="font-weight:700; color:var(--green-800); margin-bottom:4px;">Pay via GCash QR</p>
-              <p style="font-size:13px; color:var(--green-700); margin-bottom:12px; line-height:1.4;">
-                Scan the QR code below using your GCash app.<br />You can pay upon pickup or when the rider arrives.
-              </p>
-              <div
-                style="background:#fff; border:1px solid var(--green-300); border-radius:12px; margin: 0 auto; display:inline-block; padding:8px;">
-                <picture>
-                  <source srcset="/img/gcash-qr.webp" type="image/webp" />
-                  <img src="/img/gcash-qr.png" alt="GCash QR Code" loading="lazy" decoding="async"
-                    style="width:160px; height:auto; display:block; border-radius:8px; cursor:zoom-in;"
-                    onclick="document.getElementById('image-modal-img').src=this.currentSrc || this.src; document.getElementById('image-modal').classList.remove('hidden');" />
-                </picture>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Discount & Voucher Code ── -->
-        <div class="card" id="checkout-voucher-card">
-          <div class="card-header">
-            <div class="step-num">🏷️</div>
-            <div>
-              <h2>Voucher &amp; Discounts</h2>
-              <div class="card-header-sub">Have a promo code? Enter below or select an offer</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <!-- Voucher Input Box -->
-            <div class="checkout-voucher-input-box" id="checkout-voucher-input-box">
-              <div class="checkout-voucher-field-wrap">
-                <span class="voucher-icon" aria-hidden="true"><img src="/icons/ui/discount.webp" class="voucher-field-icon-img" alt="" /></span>
-                <input type="text" id="checkout-voucher-input" class="checkout-voucher-input" placeholder="Enter voucher code" autocomplete="off" autocapitalize="characters" onkeypress="if(event.key==='Enter'){event.preventDefault();window.applyVoucherCode('checkout');}" />
-              </div>
-              <button type="button" class="voucher-apply-btn" id="checkout-voucher-apply-btn" onclick="window.applyVoucherCode('checkout')">
-                Apply
-              </button>
-            </div>
-
-            <!-- Applied Voucher Box -->
-            <div class="checkout-voucher-applied-box hidden" id="checkout-voucher-applied-box">
-              <div class="applied-voucher-badge">
-                <span class="applied-voucher-icon">✨</span>
-                <div>
-                  <div class="applied-voucher-code-title">
-                    <span id="checkout-voucher-badge-code">VOUCHER</span>
-                    <span class="applied-tag">Applied</span>
-                  </div>
-                  <div class="applied-voucher-desc" id="checkout-voucher-badge-desc">Discount applied to your order</div>
-                </div>
-              </div>
-              <button type="button" class="btn-remove-voucher-pill" onclick="window.removeVoucherCode()">
-                ✕ Remove
-              </button>
-            </div>
-
-            <!-- Feedback Alert -->
-            <div class="voucher-feedback-msg hidden" id="checkout-voucher-msg"></div>
-
-            <!-- Quick Voucher Chips in Step 3 (hidden if no active vouchers) -->
-            <div class="available-vouchers-wrap" id="available-vouchers-wrap" style="display:none;">
-              <div class="available-vouchers-label">⚡ Available Deals (Tap to apply):</div>
-              <div class="voucher-chips-grid" id="checkout-voucher-chips"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Order Summary ── -->
-        <div class="card hidden" id="order-summary">
-          <div class="card-header">
-            <div class="icon">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <polyline points="9 11 12 14 22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-            </div>
-            <h2>Order Summary</h2>
-          </div>
-          <div class="card-body">
-            <table class="summary-table">
-              <thead>
-                <tr>
-                  <td
-                    style="font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
-                    Item</td>
-                  <td
-                    style="text-align:center;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
-                    Qty</td>
-                  <td
-                    style="text-align:right;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
-                    Price</td>
-                  <td
-                    style="text-align:right;font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:10px">
-                    Total</td>
-                </tr>
-              </thead>
-              <tbody id="summary-items"></tbody>
-              <tbody>
-                <tr>
-                  <td colspan="4">
-                    <hr class="summary-divider" />
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan="3" style="font-weight:700;color:var(--text-mid)">Subtotal</td>
-                  <td id="summary-subtotal" style="text-align:right;font-weight:700">₱0</td>
-                </tr>
-                <tr id="summary-discount-row" class="fee-row" style="display:none; color:#15803d; font-weight:700;">
-                  <td colspan="3" style="color:#15803d;">
-                    Discount
-                    <span id="summary-discount-code" style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 7px;border-radius:4px;font-weight:800;margin-left:5px;border:1px solid #bbf7d0;"></span>
-                  </td>
-                  <td id="summary-discount" style="text-align:right;color:#15803d;font-weight:800;">-₱0</td>
-                </tr>
-                <tr id="summary-delivery-row" class="fee-row">
-                  <td colspan="3" style="color:var(--text-soft)">
-                    Delivery Fee
-                    <span id="summary-delivery-dist"
-                      style="font-size:11px;font-weight:500;color:var(--text-soft);margin-left:4px;display:none;"></span>
-                  </td>
-                  <td id="summary-delivery-fee" style="text-align:right;color:var(--text-soft)">&#8369;0</td>
-                </tr>
-                <tr class="total-row">
-                  <td colspan="3">Total</td>
-                  <td id="summary-total" style="text-align:right">₱0</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- ── Place Order ── -->
-        <button class="place-order-btn" id="place-order-btn" type="button" style="margin-top:20px">
-          <img src="/icons/ui/bamboo-whisk.webp" class="btn-ui-icon" alt="" /> Place Order
-        </button>
-      </div><!-- /wizard-step-3 -->
-
-      <!-- ── Footer ── -->
-      <footer
-        style="margin-top:32px;padding:18px 0 10px;text-align:center;border-top:1px dashed var(--border);font-size:13px;color:var(--text-soft);">
-        <p>Studio Midori &middot; Craft Matcha Experience</p>
-        <p style="margin-top:4px;font-size:12px;opacity:0.8;">Freshly Whisked &middot; Handcrafted with Care 🍵</p>
-      </footer>
-
-    </div><!-- /container -->
-  </div><!-- /order-form-area -->
-
-
-  <!-- ══════════════════════════════════════════
-       SUCCESS SCREEN
-  ══════════════════════════════════════════ -->
-  <div id="success-screen" class="success-screen hidden">
-    <div class="container">
-      <div class="success-checkmark">
-        <svg viewBox="0 0 24 24">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
+        <ul class="mobile-nav-list">
+          <li><a href="#menu">🍵 Signature Drinks</a></li>
+          <li><a href="#story">🍃 Our Story</a></li>
+          <li><a href="#location">📍 Location &amp; Hours</a></li>
+          <li><a href="#reviews">⭐ Customer Reviews</a></li>
+          <li><a href="/order">🛒 Order Online</a></li>
+        </ul>
       </div>
-
-      <h1 class="success-title">Order Received!</h1>
-      <p style="color:var(--text-soft);font-size:14px;font-weight:600;margin-bottom:4px">Your order number is</p>
-      <div class="order-number-badge" id="success-order-number">SM-0001</div>
-
-      <!-- ── Live Order Status Tracker ── -->
-      <div class="order-status-card" id="order-status-card">
-        <div class="status-live-header">
-          <span class="live-indicator"><span class="live-dot"></span> Live Status</span>
-          <span class="status-current-badge status-new" id="customer-status-badge">🆕 Received</span>
-        </div>
-
-        <div class="status-message-box" id="customer-status-desc">
-          We've received your order! We'll begin preparing your drinks shortly.
-        </div>
-
-        <div
-          style="text-align:center; font-size:13px; color:var(--text-soft); margin-top:-8px; margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:6px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-          <strong>Est. Prep Time:</strong> 25-30mins
-        </div>
-
-        <div class="status-steps" id="status-steps">
-          <div class="step-item active" id="step-new">
-            <div class="step-icon-wrap"><img src="/icons/ui/package.webp" class="status-step-icon-img" alt="Received" /></div>
-            <div class="step-label">Received</div>
-          </div>
-          <div class="step-line" id="line-1"></div>
-          <div class="step-item" id="step-preparing">
-            <div class="step-icon-wrap"><img src="/icons/ui/bamboo-whisk.webp" class="status-step-icon-img" alt="Preparing" /></div>
-            <div class="step-label">Preparing</div>
-          </div>
-          <div class="step-line" id="line-2"></div>
-          <div class="step-item" id="step-ready">
-            <div class="step-icon-wrap"><img src="/icons/ui/scooter.webp" id="step-ready-icon-img" class="status-step-icon-img" alt="Ready" /></div>
-            <div class="step-label" id="step-ready-label">Ready</div>
-          </div>
-          <div class="step-line" id="line-3"></div>
-          <div class="step-item" id="step-completed">
-            <div class="step-icon-wrap"><img src="/icons/ui/gift.webp" class="status-step-icon-img" alt="Completed" /></div>
-            <div class="step-label">Completed</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Order Chat ── -->
-      <div class="order-chat-card" id="customer-chat-container">
-        <div class="chat-header" onclick="toggleCustomerChat()">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <img src="/icons/ui/chat.webp" style="width:20px;height:20px;object-fit:contain;" alt="" />
-            <span>Message Studio Midori</span>
-            <span class="chat-unread-badge hidden" id="customer-chat-badge">0</span>
-          </div>
-          <span style="font-size:12px; color:var(--text-soft)">Tap to toggle</span>
-        </div>
-        <div class="chat-body" id="customer-chat-body">
-          <div class="chat-messages" id="customer-chat-messages">
-            <div class="chat-msg admin-msg">Hi! Let us know if you have any questions or changes to your order. 🍵</div>
-          </div>
-          <div class="chat-input-row">
-            <input type="text" id="customer-chat-input" placeholder="Type a message..." autocomplete="off">
-            <button id="customer-chat-send" type="button">Send</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="success-detail-card">
-        <div class="detail-row">
-          <span class="detail-label">Name</span>
-          <span class="detail-value" id="success-customer-name">—</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Mobile</span>
-          <span class="detail-value" id="success-mobile">—</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Order Type</span>
-          <span class="detail-value" id="success-type">—</span>
-        </div>
-        <div class="detail-row hidden" id="success-location-row">
-          <span class="detail-label">Delivery Pin</span>
-          <span class="detail-value" id="success-location">—</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label" id="success-date-label">Date & Pick-up Time</span>
-          <span class="detail-value" id="success-date">—</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Items</span>
-          <span class="detail-value" id="success-items">—</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Subtotal</span>
-          <span class="detail-value" id="success-subtotal">—</span>
-        </div>
-        <div class="detail-row hidden" id="success-discount-row">
-          <span class="detail-label" id="success-discount-label" style="color:#15803d;font-weight:700;">Discount</span>
-          <span class="detail-value" id="success-discount" style="color:#15803d;font-weight:800;">-₱0</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Delivery Fee</span>
-          <span class="detail-value" id="success-delivery-fee">Free</span>
-        </div>
-        <div class="detail-row" style="border-bottom:none">
-          <span class="detail-label" style="font-size:16px;color:var(--green-700);font-weight:900">Total</span>
-          <span class="detail-value" id="success-total"
-            style="font-size:18px;color:var(--green-700);font-weight:900">—</span>
-        </div>
-      </div>
-
-      <div class="success-note">
-        📲 We'll contact you via SMS or call once your order is being prepared.
-        Thank you for ordering from Studio Midori! 💚
-      </div>
-
-      <div style="display:flex;gap:10px;width:100%;max-width:440px;margin-top:14px;box-sizing:border-box;">
-        <button class="secondary-btn" id="back-to-menu-btn" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;" type="button">← Back to Menu</button>
-        <button class="new-order-btn" id="new-order-btn" style="flex:1;margin-top:0;" type="button">+ Place Another</button>
+      <div class="mobile-nav-footer" id="mobile-nav-footer">
+        <a href="/order" class="btn-hero-primary" style="width:100%;justify-content:center;">
+          Order Online Now &rarr;
+        </a>
       </div>
     </div>
   </div>
 
-  <!-- ── Floating / Sticky Cart Bar (Shopee Style) ── -->
-  <div class="mobile-sticky-cart hidden" id="mobile-sticky-cart">
-    <div class="sticky-cart-content">
-      <div class="sticky-cart-info" onclick="window.openCartDrawer()" style="cursor:pointer;" title="Tap to view your cart">
-        <div class="sticky-cart-info-top">
-          <img src="/icons/ui/cart.webp" class="sticky-cart-icon-img" alt="Cart" />
-          <span class="sticky-cart-count" id="sticky-cart-count">0 drinks</span>
+  <main>
+    <!-- ── 3. Hero Section (Natural, Pure Editorial) ── -->
+    <section class="home-hero-section">
+      <div class="home-hero-container">
+        <div class="hero-content-col">
+          <div class="hero-tag-badge" id="hero-schedule-badge">
+            <img src="/icons/ui/leaves.webp" style="width:16px;height:16px;object-fit:contain;" alt="" />
+            <span>Ceremonial Uji Matcha &amp; Hojicha · Bangued, Abra</span>
+          </div>
+
+          <h1 class="hero-title">
+            Pure Japanese Matcha, <span class="highlight-text">Freshly Whisked.</span>
+          </h1>
+
+          <p class="hero-subtitle">
+            Authentic ceremonial grade tea leaves sourced directly from Uji, Kyoto. Handcrafted and whisked fresh for store pickup or doorstep delivery in Abra.
+          </p>
+
+          <div class="hero-cta-group">
+            <a href="/order" class="btn-hero-primary">
+              <img src="/icons/ui/cart.webp" style="width:20px;height:20px;object-fit:contain;" alt="" />
+              <span>Order Online &rarr;</span>
+            </a>
+            <a href="#menu" class="btn-hero-secondary">
+              <span>View Drinks ↓</span>
+            </a>
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
-          <span class="sticky-cart-total" id="sticky-cart-total">&#8369;0</span>
-          <span id="sticky-cart-shipping" style="font-size:11px;font-weight:600;color:var(--green-600);display:none;">+
-            &#8369;0 shipping</span>
+
+        <div class="hero-visual-col">
+          <div class="hero-banner-card">
+            <picture>
+              <source srcset="/img/banner.webp" type="image/webp" />
+              <img src="/banner.png" alt="Studio Midori Handcrafted Drinks" class="hero-banner-img" fetchpriority="high" />
+            </picture>
+          </div>
         </div>
       </div>
-      <div class="sticky-cart-actions">
-        <button class="sticky-cart-btn-secondary" id="sticky-view-cart-btn" type="button" onclick="window.openCartDrawer()">
-          View Cart 🛒
+    </section>
+
+    <!-- ── 4. Signature Drinks Showcase ── -->
+    <section class="home-menu-section" id="menu">
+      <div class="section-header-block">
+        <span class="section-jp-tag">スタジオの名物 · SIGNATURE MENU</span>
+        <h2 class="section-main-title">Crafted for True Tea Lovers</h2>
+        <p class="section-lead-desc">
+          From our classic ceremonial matcha latte to velvety roasted hojicha and luscious fruit layers, discover your next favorite daily cup.
+        </p>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="home-menu-tabs" role="tablist">
+        <button type="button" class="home-menu-tab-btn active" data-category="all">
+          <img src="/icons/ui/leaves.webp" style="width:16px;height:16px;object-fit:contain;" alt="" /> All Drinks
         </button>
-        <button class="sticky-cart-btn" id="sticky-cart-btn" type="button">
-          Checkout ➔
+        <button type="button" class="home-menu-tab-btn" data-category="matcha">
+          <img src="/icons/ui/matcha-bowl.webp" style="width:16px;height:16px;object-fit:contain;" alt="" /> Matcha Series
+        </button>
+        <button type="button" class="home-menu-tab-btn" data-category="hojicha">
+          <img src="/icons/ui/drink-hojicha.webp" style="width:16px;height:16px;object-fit:contain;" alt="" /> Hojicha Series
         </button>
       </div>
-    </div>
-  </div>
 
-  <!-- ══════════════════════════════════════════
-       SHOPEE-STYLE SHOPPING CART DRAWER
-  ══════════════════════════════════════════ -->
-  <div id="cart-drawer-backdrop" class="cart-drawer-backdrop hidden" onclick="window.closeCartDrawer()"></div>
-  <aside id="cart-drawer" class="cart-drawer hidden" aria-label="Shopping Cart Drawer" role="dialog" aria-modal="true">
-    <div class="cart-drawer-header">
-      <div class="cart-drawer-title-group">
-        <img src="/icons/ui/cart.webp" class="drawer-header-icon-img" alt="Cart" />
-        <h2>Your Cart</h2>
-        <span class="cart-badge-pill" id="cart-drawer-count">0 drinks</span>
-      </div>
-      <div class="cart-drawer-header-actions">
-        <button type="button" class="btn-clear-cart" id="btn-clear-cart" onclick="window.confirmClearCart()" title="Empty cart">Clear</button>
-        <button type="button" class="cart-drawer-close" onclick="window.closeCartDrawer()" aria-label="Close cart">&times;</button>
-      </div>
-    </div>
-
-    <!-- Scrollable Items List -->
-    <div class="cart-drawer-body" id="cart-drawer-body">
-      <!-- Items dynamically populated by app.js -->
-    </div>
-
-    <!-- Cart Footer with Checkout CTA -->
-    <div class="cart-drawer-footer" id="cart-drawer-footer">
-      <!-- Cart Voucher / Promo Section -->
-      <div class="cart-voucher-container">
-        <!-- Input row when no voucher is applied -->
-        <div class="cart-voucher-input-row" id="cart-voucher-input-box">
-          <span class="cart-voucher-tag-icon" aria-hidden="true">🎟️</span>
-          <input type="text" id="cart-voucher-input" class="cart-voucher-input" placeholder="Voucher or promo code" autocomplete="off" autocapitalize="characters" onkeypress="if(event.key==='Enter'){event.preventDefault();window.applyVoucherCode('cart');}" />
-          <button type="button" class="cart-voucher-apply-btn" id="cart-voucher-apply-btn" onclick="window.applyVoucherCode('cart')">Apply</button>
-        </div>
-
-        <!-- Applied voucher badge when active -->
-        <div class="cart-voucher-applied-box hidden" id="cart-voucher-applied-box">
-          <div class="cart-voucher-applied-left">
-            <span class="cart-voucher-applied-icon">✨</span>
-            <div class="cart-voucher-applied-text">
-              <span class="cart-voucher-code" id="cart-voucher-badge-code">VOUCHER</span>
-              <span class="cart-voucher-saving" id="cart-voucher-badge-saving">-₱0</span>
+      <!-- Drink Cards Grid -->
+      <div class="home-drinks-grid">
+        <!-- 1. Classic Matcha Latte -->
+        <article class="home-drink-card" data-category="matcha">
+          <div class="drink-card-media">
+            <span class="drink-card-tag">Bestseller</span>
+            <picture>
+              <source srcset="/img/products/classic-matcha-latte.webp" type="image/webp" />
+              <img src="/img/products/classic-matcha-latte.png" alt="Classic Matcha Latte" class="drink-card-img" loading="lazy" />
+            </picture>
+            <span class="drink-card-price-badge">₱189</span>
+          </div>
+          <div class="drink-card-content">
+            <span class="drink-card-jp-name">クラシック抹茶ラテ</span>
+            <h3 class="drink-card-title">Classic Matcha Latte</h3>
+            <p class="drink-card-desc">
+              Vibrant ceremonial grade Uji matcha whisked with velvety steamed or iced fresh milk. Rich in umami with gentle natural sweetness.
+            </p>
+            <div class="drink-card-footer">
+              <span class="drink-card-notes">🍵 Ceremonial Uji</span>
+              <a href="/order" class="btn-card-order">
+                <span>Order ➔</span>
+              </a>
             </div>
           </div>
-          <button type="button" class="cart-voucher-remove-btn" onclick="window.removeVoucherCode()" title="Remove voucher" aria-label="Remove voucher">✕</button>
-        </div>
+        </article>
 
-        <!-- Feedback message -->
-        <div class="voucher-feedback-msg hidden" id="cart-voucher-msg"></div>
-
-        <!-- Quick voucher chips in cart drawer -->
-        <div class="cart-voucher-chips" id="cart-voucher-chips"></div>
-      </div>
-
-      <div class="cart-footer-summary">
-        <div class="cart-footer-subtotal-row">
-          <span class="cart-footer-label">Subtotal</span>
-          <span class="cart-footer-subtotal" id="cart-drawer-subtotal">₱0</span>
-        </div>
-        <div class="cart-footer-subtotal-row" id="cart-drawer-discount-row" style="display:none;">
-          <span class="cart-footer-label" style="color:#15803d;font-weight:700;">Voucher Discount</span>
-          <span class="cart-footer-discount" id="cart-drawer-discount" style="font-size:16px;font-weight:800;color:#15803d;">-₱0</span>
-        </div>
-        <div class="cart-footer-hint">🛵 Delivery fee &amp; schedule selected at next step</div>
-      </div>
-      <div class="cart-footer-buttons-stack">
-        <button type="button" class="cart-checkout-btn" id="cart-drawer-checkout-btn" onclick="window.checkoutFromCart()">
-          <span>Proceed to Checkout</span>
-          <span class="cart-checkout-count" id="cart-drawer-btn-count">(0)</span>
-          <span class="cart-checkout-arrow">➔</span>
-        </button>
-        <button type="button" class="cart-continue-btn" id="cart-drawer-continue-btn" onclick="window.continueShopping()">
-          ← Add More Drinks / Back to Menu
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- ══════════════════════════════════════════
-       DRINK CUSTOMIZATION MODAL (SHOPEE STYLE)
-  ══════════════════════════════════════════ -->
-  <div id="customization-backdrop" class="customization-backdrop hidden" onclick="window.closeCustomizationModal()"></div>
-  <div id="customization-modal" class="customization-modal hidden" role="dialog" aria-modal="true" aria-labelledby="custom-modal-title" onclick="if(event.target===this) window.closeCustomizationModal()">
-    <div class="customization-modal-dialog">
-      <div class="modal-drag-bar"></div>
-      <div class="customization-modal-header">
-        <div class="custom-header-product">
-          <div class="custom-header-img-wrap" id="custom-modal-img-wrap">
-            <span class="product-img-fallback">🍵</span>
+        <!-- 2. Seasalt Cloud Matcha -->
+        <article class="home-drink-card" data-category="matcha">
+          <div class="drink-card-media">
+            <span class="drink-card-tag" style="background:#0284c7;">House Special</span>
+            <picture>
+              <source srcset="/img/products/seaslat-cloud-matcha.webp" type="image/webp" />
+              <img src="/img/products/seaslat-cloud-matcha.png" alt="Seasalt Cloud Matcha" class="drink-card-img" loading="lazy" />
+            </picture>
+            <span class="drink-card-price-badge">₱219</span>
           </div>
-          <div class="custom-header-info">
-            <h3 id="custom-modal-title">Drink Name</h3>
-            <div class="custom-modal-price" id="custom-modal-price">₱0</div>
+          <div class="drink-card-content">
+            <span class="drink-card-jp-name">シーソルト クラウド抹茶</span>
+            <h3 class="drink-card-title">Seasalt Cloud Matcha</h3>
+            <p class="drink-card-desc">
+              Iced ceremonial matcha latte crowned with our thick, velvety whipped sea-salt cream cap. The perfect harmony of savoury and sweet.
+            </p>
+            <div class="drink-card-footer">
+              <span class="drink-card-notes">✨ Salted Cream Cap</span>
+              <a href="/order" class="btn-card-order">
+                <span>Order ➔</span>
+              </a>
+            </div>
           </div>
-        </div>
-        <button type="button" class="custom-modal-close" onclick="window.closeCustomizationModal()" aria-label="Close">&times;</button>
+        </article>
+
+        <!-- 3. Strawberry Matcha -->
+        <article class="home-drink-card" data-category="matcha">
+          <div class="drink-card-media">
+            <span class="drink-card-tag" style="background:#e11d48;">Customer Favorite</span>
+            <picture>
+              <source srcset="/img/products/strawberry-matcha.webp" type="image/webp" />
+              <img src="/img/products/strawberry-matcha.png" alt="Strawberry Matcha" class="drink-card-img" loading="lazy" />
+            </picture>
+            <span class="drink-card-price-badge">₱229</span>
+          </div>
+          <div class="drink-card-content">
+            <span class="drink-card-jp-name">苺抹茶ラテ</span>
+            <h3 class="drink-card-title">Strawberry Matcha</h3>
+            <p class="drink-card-desc">
+              Real housemade strawberry purée layered below creamy milk and crowned with an emerald ceremonial matcha float. Beautiful and delicious.
+            </p>
+            <div class="drink-card-footer">
+              <span class="drink-card-notes">🍓 Real Berry Purée</span>
+              <a href="/order" class="btn-card-order">
+                <span>Order ➔</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- 4. Dark Roast Hojicha Latte -->
+        <article class="home-drink-card" data-category="hojicha">
+          <div class="drink-card-media">
+            <span class="drink-card-tag" style="background:#78350f;">Roasted · Low Caffeine</span>
+            <picture>
+              <source srcset="/img/products/hojicha-latte.webp" type="image/webp" />
+              <img src="/img/products/hojicha-latte.png" alt="Dark Roast Hojicha Latte" class="drink-card-img" loading="lazy" />
+            </picture>
+            <span class="drink-card-price-badge">₱189</span>
+          </div>
+          <div class="drink-card-content">
+            <span class="drink-card-jp-name">ほうじ茶ラテ</span>
+            <h3 class="drink-card-title">Dark Roast Hojicha Latte</h3>
+            <p class="drink-card-desc">
+              Charcoal-roasted Japanese green tea offering deep, nutty aromas, toasted caramel notes, and an ultra-smooth finish with low caffeine.
+            </p>
+            <div class="drink-card-footer">
+              <span class="drink-card-notes">🍂 Toasty &amp; Caramel</span>
+              <a href="/order" class="btn-card-order">
+                <span>Order ➔</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- 5. Seasalt Cloud Hojicha -->
+        <article class="home-drink-card" data-category="hojicha">
+          <div class="drink-card-media">
+            <span class="drink-card-tag" style="background:#57534e;">Decadent Pair</span>
+            <picture>
+              <source srcset="/img/products/seasalt-hojicha-cloud.webp" type="image/webp" />
+              <img src="/img/products/seasalt-hojicha-cloud.png" alt="Seasalt Cloud Hojicha" class="drink-card-img" loading="lazy" />
+            </picture>
+            <span class="drink-card-price-badge">₱179</span>
+          </div>
+          <div class="drink-card-content">
+            <span class="drink-card-jp-name">シーソルト ほうじ茶</span>
+            <h3 class="drink-card-title">Seasalt Cloud Hojicha</h3>
+            <p class="drink-card-desc">
+              Warm toasty notes of roasted hojicha balanced with the rich, indulgent creaminess of our sea-salt cloud foam topper.
+            </p>
+            <div class="drink-card-footer">
+              <span class="drink-card-notes">☕ Cozy &amp; Velvety</span>
+              <a href="/order" class="btn-card-order">
+                <span>Order ➔</span>
+              </a>
+            </div>
+          </div>
+        </article>
       </div>
 
-      <div class="customization-modal-body" id="customization-modal-body">
-        <!-- Matcha Cultivar Chips -->
-        <div class="custom-option-section" id="custom-matcha-section">
-          <label class="custom-section-label">🍵 Matcha Cultivar</label>
-          <div class="custom-chip-group" id="custom-matcha-chips"></div>
-        </div>
+      <div class="home-menu-cta-bar">
+        <a href="/order" class="btn-hero-primary" style="display:inline-flex;">
+          <img src="/icons/ui/bamboo-whisk.webp" style="width:20px;height:20px;object-fit:contain;" alt="" />
+          <span>View Full Menu &amp; Customize Drinks &rarr;</span>
+        </a>
+      </div>
+    </section>
 
-        <!-- Sweetness Level Buttons -->
-        <div class="custom-option-section" id="custom-sweetness-section">
-          <div class="custom-section-header">
-            <label class="custom-section-label">🍬 Sweetness Level</label>
-            <span class="custom-section-selected" id="custom-sweetness-selected">100% Sweet</span>
-          </div>
-          <div class="custom-sweetness-buttons" id="custom-sweetness-buttons"></div>
-        </div>
-
-        <!-- Optional Add-ons -->
-        <div class="custom-option-section" id="custom-addons-section">
-          <label class="custom-section-label">✨ Optional Add-ons</label>
-          <div class="custom-addons-list" id="custom-addons-list"></div>
-        </div>
-
-        <!-- Quantity Stepper -->
-        <div class="custom-option-section custom-qty-section" id="custom-qty-section">
+    <!-- ── 5. The Studio Midori Story (Natural Editorial) ── -->
+    <section class="home-story-section" id="story">
+      <div class="home-story-container">
+        <div class="story-intro-grid">
           <div>
-            <label class="custom-section-label" style="margin-bottom:0">Number of Cups</label>
-            <div class="custom-section-sub">Prepare with these exact options</div>
+            <div class="story-lead-badge">
+              <img src="/icons/ui/matcha-bowl.webp" style="width:18px;height:18px;object-fit:contain;" alt="" />
+              <span>THE STUDIO MIDORI STORY</span>
+            </div>
+            <h2 class="story-h2">It Started With a Love for Matcha. It Grew Into a Love for Japanese Tea.</h2>
+            <p class="story-text">
+              Our journey began with a simple love for matcha and a desire to share it with others. But we soon realized that not everyone saw matcha the way we did. Some found it too bitter, others described it as grassy, and many had yet to discover what made it special.
+            </p>
+            <p class="story-text">
+              We wanted to show them that matcha is more than just one flavor. Different cultivars bring different personalities to every cup — from delicate and mellow to rich, savory, and deeply umami. There is so much to explore, and perhaps, a matcha for everyone.
+            </p>
+            <p class="story-text">
+              As our curiosity grew, so did our appreciation for Japanese tea. We discovered hojicha, with its distinct roasted aroma, warm character, and comforting flavor. It reminded us that tea doesn't have to be experienced just one way.
+            </p>
+            <p class="story-text">
+              And so, Studio Midori was born: a small, homegrown matcha and hojicha bar in Abra, built on curiosity, careful preparation, and the joy of sharing what we love.
+            </p>
+            <p class="story-text">
+              We may have started by making drinks for ourselves, but now we hope to help others find their own favorites, one cup at a time.
+            </p>
+            <div class="story-callout-quote">
+              <p>“From the many shades of matcha to the warmth of hojicha, there's always something new to discover in a cup of tea.”</p>
+            </div>
           </div>
-          <div class="custom-stepper">
-            <button type="button" class="custom-stepper-btn" onclick="window.stepCustomQty(-1)" id="custom-qty-minus" aria-label="Decrease quantity">−</button>
-            <span class="custom-stepper-value" id="custom-qty-value">1</span>
-            <button type="button" class="custom-stepper-btn" onclick="window.stepCustomQty(1)" aria-label="Increase quantity">+</button>
+          <div>
+            <div class="story-photo-box">
+              <picture>
+                <source srcset="/img/story.webp" type="image/webp" />
+                <img src="/img/story.jpg" alt="Studio Midori Handcrafted Drinks" class="story-photo-img" loading="lazy" />
+              </picture>
+            </div>
           </div>
         </div>
       </div>
+    </section>
 
-      <div class="customization-modal-footer">
-        <button type="button" class="btn-submit-customization" id="btn-submit-customization" onclick="window.submitCustomization()">
-          <span id="custom-submit-text">Add to Cart</span>
-          <span class="custom-submit-divider">•</span>
-          <span class="custom-submit-price" id="custom-submit-price">₱0</span>
-        </button>
+    <!-- ── 6. Schedule, Location & Pickup ── -->
+    <section class="home-location-section" id="location">
+      <div class="home-location-container">
+        <div class="section-header-block">
+          <span class="section-jp-tag">営業時間 &amp; アクセス · VISIT US</span>
+          <h2 class="section-main-title">Store Schedule &amp; Pickup Point</h2>
+          <p class="section-lead-desc">
+            We operate out of Bangued, Abra. Store pickup is available right at Aspacio Panciteria along Mabini St.
+          </p>
+        </div>
+
+        <div class="location-layout-grid">
+          <div class="location-details-col">
+            <div class="info-card-box">
+              <h3><img src="/icons/ui/calendar.webp" style="width:20px;height:20px;object-fit:contain;" alt="" /> Weekly Schedule</h3>
+              <div class="schedule-badge-row">
+                <div>
+                  <strong>Monday – Thursday</strong>
+                  <div style="font-size:12px;color:var(--text-soft)">Fresh Batch Pre-Orders Only</div>
+                </div>
+                <span class="status-pill-amber">Advance Orders</span>
+              </div>
+              <div class="schedule-badge-row">
+                <div>
+                  <strong>Friday – Sunday</strong>
+                  <div style="font-size:12px;color:var(--text-soft)">Same-Day Prep &amp; Advance Orders</div>
+                </div>
+                <span class="status-pill-green">Active Today</span>
+              </div>
+              <div class="schedule-badge-row">
+                <div>
+                  <strong>Operating Hours</strong>
+                  <div style="font-size:12px;color:var(--text-soft)">Daily Order Fulfillment Window</div>
+                </div>
+                <strong style="color:var(--green-800)">9:00 AM – 9:00 PM</strong>
+              </div>
+            </div>
+
+            <div class="info-card-box">
+              <h3><img src="/icons/ui/location.webp" style="width:20px;height:20px;object-fit:contain;" alt="" /> Pickup &amp; Delivery Info</h3>
+              <p style="font-size:13.5px;color:var(--text-dark);margin-bottom:8px;">
+                <strong>Store Pickup Point:</strong> Aspacio Panciteria, Mabini St, Zone 3, Bangued, Abra
+              </p>
+              <p style="font-size:13px;color:var(--text-soft);line-height:1.5;">
+                🛵 <strong>Local Delivery:</strong> Calculated dynamically from our base location (₱25 base + ₱10/km). We deliver across Bangued and neighboring barangays.
+              </p>
+            </div>
+
+            <div class="info-card-box">
+              <h3><img src="/icons/ui/card.webp" style="width:20px;height:20px;object-fit:contain;" alt="" /> Convenient Payment</h3>
+              <p style="font-size:13px;color:var(--text-soft);line-height:1.5;">
+                We accept <strong>Cash on Delivery (COD)</strong> upon delivery/pickup, and instant <strong>GCash QR</strong> scan payments.
+              </p>
+            </div>
+          </div>
+
+          <div class="map-embed-wrapper">
+            <iframe
+              src="https://maps.google.com/maps?q=Aspacio%20Panciteria,%20Mabini%20St,%20Bangued,%20Abra&t=&z=16&ie=UTF8&iwloc=&output=embed"
+              loading="lazy" title="Studio Midori Pickup Location">
+            </iframe>
+            <div class="map-caption-bar">
+              <span>📍 Aspacio Panciteria, Mabini St, Zone 3, Bangued</span>
+              <a href="https://maps.google.com/?q=Aspacio+Panciteria+Bangued+Abra" target="_blank" rel="noopener noreferrer" style="color:var(--green-700);font-weight:800;text-decoration:none;">Open in Maps &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 7. Customer Reviews ── -->
+    <section class="home-reviews-section" id="reviews">
+      <div class="section-header-block">
+        <span class="section-jp-tag">お客様の声 · LOVE FROM ABRA</span>
+        <h2 class="section-main-title">What Our Guests Say</h2>
+        <p class="section-lead-desc">
+          Honest thoughts from local matcha enthusiasts and first-timers who made Studio Midori their daily ritual.
+        </p>
+      </div>
+
+      <div class="reviews-grid">
+        <div class="review-card">
+          <div>
+            <div class="review-stars">★★★★★</div>
+            <p class="review-quote">
+              "Finally, authentic matcha in Bangued! You can really taste the ceremonial grade quality — zero bitterness and that rich umami flavor that other coffee shops just don't have. The seasalt cloud is unmatched."
+            </p>
+          </div>
+          <div class="review-author-row">
+            <div class="review-avatar">🍵</div>
+            <div>
+              <div class="review-author-name">Alyssa M.</div>
+              <div class="review-favorite-drink">Favorite: Seasalt Cloud Matcha</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-card">
+          <div>
+            <div class="review-stars">★★★★★</div>
+            <p class="review-quote">
+              "The Strawberry Matcha is incredible! You get chunks of real strawberry purée and that vibrant green matcha float. Plus, being able to pin my exact address on the map for delivery made ordering so easy."
+            </p>
+          </div>
+          <div class="review-author-row">
+            <div class="review-avatar">🍓</div>
+            <div>
+              <div class="review-author-name">Christian D.</div>
+              <div class="review-favorite-drink">Favorite: Strawberry Matcha</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-card">
+          <div>
+            <div class="review-stars">★★★★★</div>
+            <p class="review-quote">
+              "If you want something cozy and caffeine-conscious in the afternoon, their Hojicha Latte with oat milk is perfection. The smoky roasted tea flavor is so comforting. 10/10 service and fast prep!"
+            </p>
+          </div>
+          <div class="review-author-row">
+            <div class="review-avatar">🍂</div>
+            <div>
+              <div class="review-author-name">Bea R.</div>
+              <div class="review-favorite-drink">Favorite: Dark Roast Hojicha</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 8. Call to Action Banner ── -->
+    <section class="home-cta-banner-section">
+      <div class="home-cta-banner">
+        <h2 class="cta-banner-title">Ready for Your Daily Matcha Ritual?</h2>
+        <p class="cta-banner-subtitle">
+          Treat yourself to a freshly whisked cup today. Customize your sweetness, pick your favorite series, and enjoy the true taste of Japan in Abra.
+        </p>
+        <a href="/order" class="btn-cta-large">
+          <img src="/icons/ui/bamboo-whisk.webp" style="width:22px;height:22px;object-fit:contain;" alt="" />
+          <span>Start Your Order Now &rarr;</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- ── 9. Artisanal Footer ── -->
+  <footer class="home-footer">
+    <div class="home-footer-container">
+      <div class="footer-brand-col">
+        <picture>
+          <source srcset="/img/logo.webp" type="image/webp" />
+          <img src="/img/logo.png" alt="Studio Midori" class="footer-logo" />
+        </picture>
+        <p class="footer-brand-motto">
+          Studio Midori &middot; Craft Matcha Experience.<br />
+          Handcrafted ceremonial matcha and dark roasted hojicha whisked fresh in Bangued, Abra. 🍵
+        </p>
+      </div>
+
+      <div class="footer-nav-col">
+        <h4>Explore</h4>
+        <ul>
+          <li><a href="#menu">Signature Menu</a></li>
+          <li><a href="#story">Our Story</a></li>
+          <li><a href="#location">Store Location</a></li>
+          <li><a href="#reviews">Guest Reviews</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-nav-col">
+        <h4>Ordering</h4>
+        <ul>
+          <li><a href="/order">Order Online</a></li>
+          <li><a href="/order">Store Pickup</a></li>
+          <li><a href="/order">Bangued Delivery</a></li>
+          <li><a href="/admin">Staff Admin Portal</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-nav-col">
+        <h4>Operating Days</h4>
+        <ul>
+          <li><span style="color:#fde047;">Fri – Sun:</span> Same-day &amp; Advance</li>
+          <li><span style="color:#dcfce7;">Mon – Thu:</span> Advance Pre-Orders</li>
+          <li><span>Hours:</span> 9:00 AM – 9:00 PM</li>
+          <li><span>Pickup:</span> Aspacio Panciteria</li>
+        </ul>
       </div>
     </div>
-  </div>
 
-  <!-- ── Toast ── -->
-  <div class="toast" id="toast" role="alert" aria-live="polite"></div>
-
-  <!-- ══════════════════════════════════════════
-       IMAGE ZOOM MODAL
-  ══════════════════════════════════════════ -->
-  <div id="image-modal" class="image-modal hidden" onclick="this.classList.add('hidden')">
-    <div class="image-modal-content">
-      <img id="image-modal-img" src="" alt="Enlarged Image" />
+    <div class="footer-bottom-row">
+      <span>&copy; 2026 Studio Midori. All rights reserved. Handcrafted with care.</span>
+      <div style="display:flex;gap:14px;">
+        <a href="/order" style="color:var(--green-200);text-decoration:none;">Order Now</a>
+        <span>&middot;</span>
+        <a href="/admin" style="color:var(--green-200);text-decoration:none;">Admin Login</a>
+      </div>
     </div>
-  </div>
+  </footer>
 
-  <script type="module" src="notification.js"></script>
-  <script type="module" src="premium-ui.js"></script>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="home.js"></script>
   <script type="module" src="pwa.js"></script>
+  <script type="module" src="premium-ui.js"></script>
 </body>
 
 </html>

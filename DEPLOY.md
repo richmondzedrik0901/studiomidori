@@ -66,10 +66,11 @@ Thanks to `vercel.json`'s clean URLs feature:
 
 | Page | URL |
 |------|-----|
-| 🍵 Customer order page | `https://YOUR-APP.vercel.app/` |
+| 🍵 Brand Homepage | `https://YOUR-APP.vercel.app/` |
+| 🛒 Customer Order Wizard | `https://YOUR-APP.vercel.app/order` |
 | 🗂️ Admin dashboard | `https://YOUR-APP.vercel.app/admin` (or `/admin.html` — keep private!) |
 
-Post the order page link on your Facebook page or social media.
+Post the homepage or order page link on your Facebook page or social media.
 
 ---
 

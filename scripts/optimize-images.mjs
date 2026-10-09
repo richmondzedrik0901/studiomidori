@@ -44,9 +44,11 @@ await job('img/gcash-qr.webp', src('gcash-qr.png'), out('img/gcash-qr.webp'),
 await job('img/gcash-qr.png (fallback)', src('gcash-qr.png'), out('img/gcash-qr.png'),
   (s) => s.resize({ width: 720, withoutEnlargement: true }).png({ compressionLevel: 9 }));
 
-// ── Open Graph / social banner (1200×630 JPG is the most compatible) ─
+// ── Open Graph / social banner & WebP hero banner ─────────────────────
 await job('og-banner.jpg', src('banner.png'), out('og-banner.jpg'),
   (s) => s.resize(1200, 630, { fit: 'cover' }).flatten({ background: BRAND_BG }).jpeg({ quality: 82, mozjpeg: true }));
+await job('img/banner.webp', src('banner.png'), out('img/banner.webp'),
+  (s) => s.resize({ width: 1600, withoutEnlargement: true }).webp({ quality: 84 }));
 
 // ── PWA / app icons (square, padded logo on brand background) ───────
 const icon = (size, padRatio) => (s) => {
