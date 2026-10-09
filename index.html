@@ -712,8 +712,9 @@
        DRINK CUSTOMIZATION MODAL (SHOPEE STYLE)
   ══════════════════════════════════════════ -->
   <div id="customization-backdrop" class="customization-backdrop hidden" onclick="window.closeCustomizationModal()"></div>
-  <div id="customization-modal" class="customization-modal hidden" role="dialog" aria-modal="true" aria-labelledby="custom-modal-title">
+  <div id="customization-modal" class="customization-modal hidden" role="dialog" aria-modal="true" aria-labelledby="custom-modal-title" onclick="if(event.target===this) window.closeCustomizationModal()">
     <div class="customization-modal-dialog">
+      <div class="modal-drag-bar"></div>
       <div class="customization-modal-header">
         <div class="custom-header-product">
           <div class="custom-header-img-wrap" id="custom-modal-img-wrap">
