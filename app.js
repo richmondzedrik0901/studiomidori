@@ -26,6 +26,7 @@ let selectedCategory = 'all'; // 'all', 'matcha', 'hojicha'
 let bestSellingProductNames = [];
 let firebaseVouchers = {};
 let menuLoaded = false;
+let isUserCustomTime = false;
 
 let savedState = {};
 try { savedState = JSON.parse(localStorage.getItem('midori_order_state')) || {}; } catch (e) { }
@@ -641,7 +642,7 @@ window.renderCartDrawer = function () {
   if (allItems.length === 0) {
     container.innerHTML = `
       <div class="cart-empty-state">
-        <div class="cart-empty-icon">🍵</div>
+        <div class="cart-empty-icon"><img src="/icons/ui/cart.webp" class="cart-empty-img" alt="Empty Cart" /></div>
         <div class="cart-empty-title">Your cart is empty</div>
         <div class="cart-empty-sub">Explore our handcrafted matcha drinks and add your favorites to get started!</div>
         <button type="button" class="btn-browse-menu" onclick="window.continueShopping()">Browse Menu</button>
@@ -1128,11 +1129,20 @@ function setupDeliveryToggle() {
     const timeModalTitle = $('time-modal-title');
     const successDateLabel = $('success-date-label');
 
+    const isTodayMode = $('timing-today')?.checked;
     if (type === 'delivery') {
       deliveryFields?.classList.remove('hidden');
       pickupFields?.classList.add('hidden');
-      if (timeLabel) timeLabel.innerHTML = 'Delivery Time <span class="required">*</span>';
-      if (whenSub) whenSub.textContent = 'Pick your preferred date & delivery time';
+      if (timeLabel) {
+        if (isTodayMode) {
+          timeLabel.innerHTML = isUserCustomTime
+            ? 'Estimated Delivery Time <span style="font-size:11px;font-weight:700;color:var(--text-soft);background:var(--warm-gray);padding:2px 8px;border-radius:12px;margin-left:4px">Custom Time</span>'
+            : 'Estimated Delivery Time <span style="font-size:11px;font-weight:700;color:var(--green-600);background:var(--green-100);padding:2px 8px;border-radius:12px;margin-left:4px">⚡ Earliest (~25 mins)</span>';
+        } else {
+          timeLabel.innerHTML = 'Delivery Time <span class="required">*</span>';
+        }
+      }
+      if (whenSub) whenSub.textContent = isTodayMode ? 'Your order will be prepared and delivered today' : 'Pick your preferred date & delivery time';
       if (timeModalTitle) timeModalTitle.textContent = 'Choose Delivery Time';
       if (successDateLabel) successDateLabel.textContent = 'Date & Delivery Time';
       setTimeout(() => {
@@ -1142,8 +1152,16 @@ function setupDeliveryToggle() {
     } else {
       deliveryFields?.classList.add('hidden');
       pickupFields?.classList.remove('hidden');
-      if (timeLabel) timeLabel.innerHTML = 'Pick-up Time <span class="required">*</span>';
-      if (whenSub) whenSub.textContent = 'Pick your preferred date & pick-up time';
+      if (timeLabel) {
+        if (isTodayMode) {
+          timeLabel.innerHTML = isUserCustomTime
+            ? 'Estimated Pick-up Time <span style="font-size:11px;font-weight:700;color:var(--text-soft);background:var(--warm-gray);padding:2px 8px;border-radius:12px;margin-left:4px">Custom Time</span>'
+            : 'Estimated Pick-up Time <span style="font-size:11px;font-weight:700;color:var(--green-600);background:var(--green-100);padding:2px 8px;border-radius:12px;margin-left:4px">⚡ Earliest (~25 mins)</span>';
+        } else {
+          timeLabel.innerHTML = 'Pick-up Time <span class="required">*</span>';
+        }
+      }
+      if (whenSub) whenSub.textContent = isTodayMode ? 'Your order will be ready for pick-up today' : 'Pick your preferred date & pick-up time';
       if (timeModalTitle) timeModalTitle.textContent = 'Choose Pick-up Time';
       if (successDateLabel) successDateLabel.textContent = 'Date & Pick-up Time';
     }
@@ -1860,8 +1878,19 @@ function setupDateTimeRules() {
     }
   });
 
+  // When customer manually sets their own custom time
+  function handleManualTimeChange() {
+    if ($('timing-today')?.checked) {
+      isUserCustomTime = true;
+      applyTimeMin();
+    }
+  }
+  timeInput.addEventListener('input', handleManualTimeChange);
+  timeInput.addEventListener('change', handleManualTimeChange);
+
   function applyTimeMin() {
     if (!timeInput) return;
+    const isTodayMode = $('timing-today')?.checked;
     const today = getTodayDateString();
     const minPrepTime = getOffsetTimeString(25);
 
@@ -1872,10 +1901,62 @@ function setupDateTimeRules() {
 
     timeInput.min = effectiveMin;
     timeInput.max = '21:00';
+    timeInput.readOnly = false;
+    timeInput.style.cursor = 'pointer';
 
-    if (!timeInput.value || timeInput.value < effectiveMin) {
-      if (effectiveMin <= '21:00') {
-        timeInput.value = effectiveMin;
+    if (isTodayMode) {
+      const earliestTime = effectiveMin <= '21:00' ? effectiveMin : '21:00';
+
+      // If user hasn't set their own custom time, or their custom time has fallen into the past
+      if (!isUserCustomTime || !timeInput.value || timeInput.value < effectiveMin) {
+        if (isUserCustomTime && timeInput.value && timeInput.value < effectiveMin) {
+          isUserCustomTime = false;
+        }
+        timeInput.value = earliestTime;
+      }
+
+      timeInput.style.backgroundColor = isUserCustomTime ? 'var(--white)' : 'var(--green-50)';
+
+      const timeLabel = $('preferred-time-label');
+      if (timeLabel) {
+        const typeText = state.deliveryType === 'delivery' ? 'Estimated Delivery Time' : 'Estimated Pick-up Time';
+        if (isUserCustomTime) {
+          timeLabel.innerHTML = `${typeText} <span style="font-size:11px;font-weight:700;color:var(--text-soft);background:var(--warm-gray);padding:2px 8px;border-radius:12px;margin-left:4px">Custom Time</span>`;
+        } else {
+          timeLabel.innerHTML = `${typeText} <span style="font-size:11px;font-weight:700;color:var(--green-600);background:var(--green-100);padding:2px 8px;border-radius:12px;margin-left:4px">⚡ Earliest (~25 mins)</span>`;
+        }
+      }
+
+      if (hintEl) {
+        if (isUserCustomTime) {
+          hintEl.innerHTML = `🕒 <strong>Custom Schedule:</strong> Scheduled for <strong>${formatTime(timeInput.value)}</strong> today. <button type="button" id="btn-reset-asap" style="margin-left:6px;background:none;border:none;color:var(--green-700);font-weight:800;font-size:12px;text-decoration:underline;cursor:pointer;padding:0;">⚡ Switch to Earliest (${formatTime(earliestTime)})</button>`;
+          const resetBtn = $('btn-reset-asap');
+          if (resetBtn) {
+            resetBtn.onclick = (e) => {
+              e.preventDefault();
+              isUserCustomTime = false;
+              applyTimeMin();
+            };
+          }
+        } else {
+          hintEl.innerHTML = `🕒 <strong>Order Now:</strong> Auto-set to earliest ready time (<strong>${formatTime(earliestTime)}</strong>, ~25 mins prep). <span style="font-size:12px;color:var(--text-soft);display:block;margin-top:2px;">💡 Need it later? Tap the time box above to set your own time.</span>`;
+        }
+        hintEl.className = 'order-date-hint hint-weekend';
+      }
+    } else {
+      timeInput.style.backgroundColor = '';
+      timeInput.title = '';
+
+      if (!timeInput.value || timeInput.value < effectiveMin) {
+        if (effectiveMin <= '21:00') {
+          timeInput.value = effectiveMin;
+        }
+      }
+
+      const timeLabel = $('preferred-time-label');
+      if (timeLabel) {
+        const typeText = state.deliveryType === 'delivery' ? 'Delivery Time' : 'Pick-up Time';
+        timeLabel.innerHTML = `${typeText} <span class="required">*</span>`;
       }
     }
   }
@@ -1889,11 +1970,6 @@ function setupDateTimeRules() {
 
       dateInput.value = getTodayDateString();
       dateInput.min = getTodayDateString();
-
-      if (hintEl) {
-        hintEl.textContent = '🕒 Ordering for today. Please allow 25-30 mins prep time.';
-        hintEl.className = 'order-date-hint hint-weekend';
-      }
     } else {
       if (dateGroup) dateGroup.style.display = '';
       if (timeContainer) timeContainer.style.gridTemplateColumns = '1fr 1fr';
@@ -1918,7 +1994,12 @@ function setupDateTimeRules() {
 
   // Handle radio toggle
   timingRadios.forEach(radio => {
-    radio.addEventListener('change', applyDateMin);
+    radio.addEventListener('change', () => {
+      if (radio.id === 'timing-today' && radio.checked) {
+        isUserCustomTime = false;
+      }
+      applyDateMin();
+    });
   });
 
   const todayIsRestricted = todayIsWeekday() || isBlackoutDate(getTodayDateString());
@@ -2012,8 +2093,8 @@ function setupDateTimeRules() {
     applyDateMin();
   });
 
-  // Real-time update: keep pushing the minimum time forward every 60 seconds
-  setInterval(applyTimeMin, 60000);
+  // Real-time update: keep auto time fresh in real time every 10 seconds
+  setInterval(applyTimeMin, 10000);
 }
 
 // ── Mobile Number Input Setup (Strict digits & formats) ──────────────
@@ -2078,6 +2159,12 @@ function setupMobileInput() {
 
 // ── Form Validation ──────────────────────────────────────────────────
 function validateForm() {
+  const isTodayMode = $('timing-today')?.checked;
+  if (isTodayMode && !isUserCustomTime) {
+    const autoTime = getOffsetTimeString(25);
+    $('preferred-time').value = (autoTime >= '09:00' && autoTime <= '21:00') ? autoTime : (autoTime < '09:00' ? '09:00' : '21:00');
+  }
+
   const name = $('customer-name').value.trim();
   const mobile = $('mobile-number').value.trim().replace(/[\s-]/g, '');
   const date = $('order-date').value;
@@ -2131,10 +2218,12 @@ function validateForm() {
 
   if (date === today) {
     const minPrepTime = getOffsetTimeString(25);
-    if (time < minPrepTime) {
-      showToast('⚠️ Please allow at least 25 minutes for preparation.');
-      highlightTimeError();
-      return false;
+    if (!isTodayMode || isUserCustomTime) {
+      if (time < minPrepTime) {
+        showToast('⚠️ Please allow at least 25 minutes for preparation.');
+        highlightTimeError();
+        return false;
+      }
     }
   }
 
@@ -2247,7 +2336,7 @@ async function placeOrder() {
       address: $('delivery-address')?.value.trim() || '',
       deliveryNotes: $('delivery-notes')?.value.trim() || '',
       orderDate: $('order-date').value,
-      preferredTime: $('preferred-time').value,
+      preferredTime: ($('timing-today')?.checked && !isUserCustomTime) ? getOffsetTimeString(25) : $('preferred-time').value,
       paymentMethod: document.querySelector('input[name="payment-method"]:checked')?.value || 'COD',
       items: selectedItems,
       subtotal,
@@ -2416,7 +2505,10 @@ function updateStatusTracker(status, deliveryType = 'pickup') {
   const mode = deliveryType === 'delivery' ? 'delivery' : 'pickup';
   const config = (STATUS_CONFIG[mode] && STATUS_CONFIG[mode][status]) || STATUS_CONFIG[mode].NEW;
 
-  if ($('step-ready-icon')) {
+  const readyImg = $('step-ready-icon-img');
+  if (readyImg) {
+    readyImg.src = mode === 'delivery' ? '/icons/ui/scooter.webp' : '/icons/ui/bag.webp';
+  } else if ($('step-ready-icon')) {
     $('step-ready-icon').textContent = mode === 'delivery' ? '🛵' : '✅';
   }
   if ($('step-ready-label')) {
@@ -3010,6 +3102,12 @@ window.nextWizardStep = function (step) {
     }
   } else if (step === 3) {
     // Validate Step 2 (Logistics) before going to Step 3
+    const isTodayMode = $('timing-today')?.checked;
+    if (isTodayMode && !isUserCustomTime) {
+      const autoTime = getOffsetTimeString(25);
+      $('preferred-time').value = (autoTime >= '09:00' && autoTime <= '21:00') ? autoTime : (autoTime < '09:00' ? '09:00' : '21:00');
+    }
+
     const date = $('order-date').value;
     const time = $('preferred-time').value;
 
@@ -3045,11 +3143,13 @@ window.nextWizardStep = function (step) {
       return false;
     }
     if (date === today) {
-      const minPrepTime = getOffsetTimeString(25);
-      if (time < minPrepTime) {
-        showToast('⚠️ Please allow at least 25 minutes for preparation.');
-        highlightTimeError();
-        return false;
+      if (!isTodayMode || isUserCustomTime) {
+        const minPrepTime = getOffsetTimeString(25);
+        if (time < minPrepTime) {
+          showToast('⚠️ Please allow at least 25 minutes for preparation.');
+          highlightTimeError();
+          return false;
+        }
       }
     }
 

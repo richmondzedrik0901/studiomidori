@@ -13,7 +13,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F375;</text></svg>" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <meta name="theme-color" content="#283c13" />
 </head>
 <body>
 
@@ -59,13 +61,16 @@
   <!-- ── Admin Navigation ── -->
   <nav class="admin-nav">
     <button class="admin-nav-btn active" id="nav-btn-orders" onclick="switchAdminSection('orders')">
-      &#x1F4CB; Orders <span class="nav-count-badge" id="nav-orders-count">0</span>
+      <img src="/icons/ui/package.webp" class="admin-nav-icon-img" alt="" /> Orders <span class="nav-count-badge" id="nav-orders-count">0</span>
     </button>
     <button class="admin-nav-btn" id="nav-btn-menu" onclick="switchAdminSection('menu')">
-      &#x1F375; Menu
+      <img src="/icons/ui/matcha-bowl.webp" class="admin-nav-icon-img" alt="" /> Menu
     </button>
     <button class="admin-nav-btn" id="nav-btn-store" onclick="switchAdminSection('store')">
-      &#x1F3EA; Store
+      <img src="/icons/ui/bag.webp" class="admin-nav-icon-img" alt="" /> Store
+    </button>
+    <button class="admin-nav-btn" id="nav-btn-inventory" onclick="switchAdminSection('inventory')">
+      <img src="/icons/ui/leaves.webp" class="admin-nav-icon-img" alt="" /> Inventory <span class="nav-count-badge hidden" id="nav-inventory-badge" style="background:#e11d48;">0</span>
     </button>
     <button class="admin-nav-btn" id="nav-btn-reports" onclick="switchAdminSection('reports')">
       📈 Analytics &amp; Reports
@@ -76,7 +81,8 @@
   <div class="orders-container" id="orders-section">
     <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Orders</h1>
-      <div style="display:flex; gap: 8px;">
+      <div style="display:flex; gap: 8px; flex-wrap:wrap;">
+        <button class="admin-primary-btn" onclick="exportOrdersCSV()" style="font-size:13px; padding:6px 14px; background:var(--green-700);">📥 Export CSV</button>
         <button class="admin-primary-btn" onclick="openManualOrderModal()" style="font-size:13px; padding:6px 14px;">+ Add Manual Order</button>
         <a href="index.html" style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
           &#x1F375; Order Page &#x2197;
@@ -257,6 +263,75 @@
     </div>
   </div>
 
+  <!-- ══ INVENTORY SECTION ══ -->
+  <div class="orders-container hidden" id="inventory-section">
+    <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800);margin:0">
+          &#x1F4E6; Inventory &amp; Stock Levels
+        </h1>
+        <div style="font-size:12.5px;color:var(--text-soft);margin-top:2px;font-weight:600">
+          Track matcha, dairy, syrups, and packaging with automatic low-stock alerts
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="admin-primary-btn" onclick="openAddInventoryModal()" style="font-size:13px; padding:6px 14px;">
+          + Add Inventory Item
+        </button>
+        <button class="admin-primary-btn" onclick="exportInventoryCSV()" style="font-size:13px; padding:6px 14px; background:var(--green-700);">
+          📥 Export CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Inventory KPI Overview Cards -->
+    <div class="analytics-kpi-grid" style="margin-bottom:18px;">
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">&#x1F4E6; Total Items</div>
+        <div class="analytics-kpi-value" id="inv-kpi-total">0</div>
+        <div class="analytics-kpi-sub">Tracked items</div>
+      </div>
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">🟢 Healthy Stock</div>
+        <div class="analytics-kpi-value" id="inv-kpi-healthy" style="color:#059669;">0</div>
+        <div class="analytics-kpi-sub">Above threshold</div>
+      </div>
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">🟡 Low Stock Warning</div>
+        <div class="analytics-kpi-value" id="inv-kpi-low" style="color:#d97706;">0</div>
+        <div class="analytics-kpi-sub">Needs replenishment</div>
+      </div>
+      <div class="analytics-kpi-card">
+        <div class="analytics-kpi-label">🔴 Out of Stock</div>
+        <div class="analytics-kpi-value" id="inv-kpi-out" style="color:#e11d48;">0</div>
+        <div class="analytics-kpi-sub">Depleted inventory</div>
+      </div>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="admin-card" style="padding:14px; margin-bottom:16px;">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;">
+        <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:220px;">
+          <input type="text" id="inv-search-input" placeholder="Search inventory (e.g. matcha, milk, cup)..." 
+                 oninput="filterInventoryList()" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;" />
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="category-tab-btn active" id="inv-filter-all" onclick="setInventoryFilter('all')">All (<span id="inv-filter-all-count">0</span>)</button>
+          <button type="button" class="category-tab-btn" id="inv-filter-low" onclick="setInventoryFilter('low')" style="color:#b45309;">⚠️ Low (<span id="inv-filter-low-count">0</span>)</button>
+          <button type="button" class="category-tab-btn" id="inv-filter-out" onclick="setInventoryFilter('out')" style="color:#be123c;">🚨 Out (<span id="inv-filter-out-count">0</span>)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Items Container -->
+    <div id="inventory-items-container">
+      <div class="empty-state">
+        <div class="empty-icon">&#x1F4E6;</div>
+        <p>Connecting to Firebase &amp; loading inventory...</p>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ ANALYTICS & REPORTS SECTION ══ -->
   <div class="orders-container hidden" id="reports-section">
     <!-- Top Bar with Title & Date Controls -->
@@ -286,6 +361,10 @@
           <span style="font-size:12px;color:var(--text-soft);font-weight:700">to</span>
           <input type="date" id="report-date-end" onchange="onCustomDateChange()" title="End Date" />
         </div>
+
+        <button type="button" class="admin-primary-btn" onclick="exportAnalyticsCSV()" style="font-size:12px; padding:6px 12px; background:var(--green-700);" title="Download sales breakdown for the selected date range">
+          📥 Export CSV
+        </button>
       </div>
     </div>
 
@@ -644,6 +723,60 @@
           
           <button type="button" class="btn-primary" onclick="confirmManualItem()" style="width:100%;">Add to Order</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       ADD / EDIT INVENTORY MODAL
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="inventory-modal" role="dialog" aria-modal="true" style="z-index:2600" onclick="if(event.target===this) closeInventoryModal()">
+    <div class="modal-sheet" style="max-width:480px;">
+      <div class="modal-drag-bar"></div>
+      <div class="modal-header">
+        <div class="modal-title" id="inventory-modal-title">Add Inventory Item</div>
+        <button type="button" class="modal-close" onclick="closeInventoryModal()" aria-label="Close modal">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <form id="inventory-form" onsubmit="saveInventoryItem(event)">
+          <input type="hidden" id="inv-edit-id" value="" />
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="inv-name-input">Item Name <span class="required">*</span></label>
+            <input type="text" id="inv-name-input" placeholder="e.g. Ceremonial Matcha Powder" required />
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="inv-category-input">Category</label>
+            <select id="inv-category-input" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;">
+              <option value="tea">&#x1F375; Matcha &amp; Teas</option>
+              <option value="dairy">&#x1F95B; Milks &amp; Dairy</option>
+              <option value="syrups">&#x1F36F; Syrups &amp; Purées</option>
+              <option value="toppings">&#x1F9C3; Toppings &amp; Add-ons</option>
+              <option value="packaging">&#x1F964; Cups &amp; Packaging</option>
+              <option value="other">&#x1F4E6; Other</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="inv-qty-input">Current Stock <span class="required">*</span></label>
+              <input type="number" id="inv-qty-input" placeholder="e.g. 500" step="any" min="0" required />
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="inv-unit-input">Unit <span class="required">*</span></label>
+              <input type="text" id="inv-unit-input" placeholder="e.g. g, ml, pcs, L" required />
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label for="inv-threshold-input">Low Stock Alert Threshold</label>
+            <input type="number" id="inv-threshold-input" placeholder="e.g. 100" step="any" min="0" value="50" />
+            <div style="font-size:11.5px;color:var(--text-soft);margin-top:3px;font-weight:600;">
+              Item triggers a warning when stock drops to or below this level
+            </div>
+          </div>
+          <div class="modal-form-actions">
+            <button type="button" class="btn-secondary" onclick="closeInventoryModal()">Cancel</button>
+            <button type="submit" class="btn-primary" id="save-inventory-btn">Save Item</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

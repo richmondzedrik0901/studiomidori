@@ -12,19 +12,32 @@
   <meta property="og:title" content="Order – Studio Midori 🍵" />
   <meta property="og:description"
     content="Order your favourite matcha drinks from Studio Midori. Pickup or delivery available." />
-  <meta property="og:image" content="https://studio-midori.vercel.app/banner.png" />
+  <meta property="og:image" content="https://studio-midori.vercel.app/og-banner.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Studio Midori – freshly whisked matcha & hojicha" />
   <meta property="og:url" content="https://studio-midori.vercel.app/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:image" content="https://studio-midori.vercel.app/banner.png" />
+  <meta name="twitter:image" content="https://studio-midori.vercel.app/og-banner.jpg" />
+
+  <!-- PWA / Installable App -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#283c13" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Studio Midori" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="preload" as="image" href="/img/logo.webp" type="image/webp" />
 
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="premium-ui.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍵</text></svg>" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
 </head>
 
 <body>
@@ -34,15 +47,14 @@
     <div class="site-header-inner">
       <div class="site-header-spacer" aria-hidden="true"></div>
       <div class="site-header-logo-wrap">
-        <img src="logo.png" alt="Studio Midori" class="logo-img" />
+        <picture>
+          <source srcset="/img/logo.webp" type="image/webp" />
+          <img src="/img/logo.png" alt="Studio Midori" class="logo-img" decoding="async" fetchpriority="high" />
+        </picture>
       </div>
       <button class="header-cart-btn" id="header-cart-btn" type="button" aria-label="View Shopping Cart" title="View Cart">
         <span class="header-cart-icon-wrap">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="9" cy="21" r="1"></circle>
-            <circle cx="20" cy="21" r="1"></circle>
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-          </svg>
+          <img src="/icons/ui/cart.webp" alt="Cart" class="header-cart-icon-img" />
           <span class="header-cart-badge hidden" id="header-cart-badge">0</span>
         </span>
         <span class="header-cart-label">Cart</span>
@@ -75,12 +87,15 @@
           <div class="card-body">
             <!-- ── Category Filter Tabs (Matcha vs Hojicha) ── -->
             <div class="menu-category-tabs" id="menu-category-tabs" role="tablist" aria-label="Filter drinks by series">
-              <button class="category-tab-btn active" onclick="setMenuCategory('all')" id="cat-tab-all">All
-                Drinks</button>
-              <button class="category-tab-btn" onclick="setMenuCategory('matcha')" id="cat-tab-matcha">🍵 Matcha
-                Series</button>
-              <button class="category-tab-btn" onclick="setMenuCategory('hojicha')" id="cat-tab-hojicha">🍂 Hojicha
-                Series</button>
+              <button class="category-tab-btn active" onclick="setMenuCategory('all')" id="cat-tab-all">
+                <img src="/icons/ui/leaves.webp" class="tab-ui-icon" alt="" /> All Drinks
+              </button>
+              <button class="category-tab-btn" onclick="setMenuCategory('matcha')" id="cat-tab-matcha">
+                <img src="/icons/ui/matcha-bowl.webp" class="tab-ui-icon" alt="" /> Matcha Series
+              </button>
+              <button class="category-tab-btn" onclick="setMenuCategory('hojicha')" id="cat-tab-hojicha">
+                <img src="/icons/ui/drink-hojicha.webp" class="tab-ui-icon" alt="" /> Hojicha Series
+              </button>
             </div>
 
             <div id="product-list">
@@ -99,7 +114,7 @@
 
         <div class="step-1-checkout-bar">
           <button type="button" class="place-order-btn" id="step-1-next-btn" onclick="window.openCartDrawer()">
-            <span class="step-btn-text">🛒 View Cart &amp; Checkout</span>
+            <span class="step-btn-text"><img src="/icons/ui/cart.webp" class="btn-ui-icon" alt="" /> View Cart &amp; Checkout</span>
             <span id="step-1-count-pill" class="step-count-pill">0 drinks</span>
           </button>
         </div>
@@ -116,7 +131,7 @@
         <!-- ── Cart Quick Strip (click to review or edit cart) ── -->
         <div class="cart-quick-summary-strip" id="cart-quick-strip" onclick="window.openCartDrawer()" title="Click to view cart items">
           <div class="cart-strip-left">
-            <span class="cart-strip-icon">🛒</span>
+            <img src="/icons/ui/cart.webp" class="cart-strip-icon-img" alt="Cart" />
             <div>
               <div class="cart-strip-title">Your Cart (<span id="strip-cart-count">0 drinks</span>)</div>
               <div class="cart-strip-sub" id="strip-cart-sub">Subtotal: ₱0</div>
@@ -138,9 +153,9 @@
             <div class="form-group" style="margin-bottom:16px;">
               <div class="toggle-group">
                 <input type="radio" name="order-timing" id="timing-today" value="today" checked />
-                <label for="timing-today" id="label-timing-today">🕒 Order Now</label>
+                <label for="timing-today" id="label-timing-today"><img src="/icons/ui/clock.webp" class="toggle-ui-icon" alt="" /> Order Now</label>
                 <input type="radio" name="order-timing" id="timing-advance" value="advance" />
-                <label for="timing-advance">📅 Advance Order</label>
+                <label for="timing-advance"><img src="/icons/ui/calendar.webp" class="toggle-ui-icon" alt="" /> Advance Order</label>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="date-time-container">
@@ -175,9 +190,9 @@
             <div class="form-group">
               <div class="toggle-group">
                 <input type="radio" name="delivery-type" id="type-pickup" value="pickup" checked />
-                <label for="type-pickup">🏪 Pickup</label>
+                <label for="type-pickup"><img src="/icons/ui/bag.webp" class="toggle-ui-icon" alt="" /> Store Pickup</label>
                 <input type="radio" name="delivery-type" id="type-delivery" value="delivery" />
-                <label for="type-delivery" id="label-type-delivery">🛵 Delivery</label>
+                <label for="type-delivery" id="label-type-delivery"><img src="/icons/ui/scooter.webp" class="toggle-ui-icon" alt="" /> Delivery</label>
               </div>
             </div>
 
@@ -202,7 +217,7 @@
                 <div class="map-label-row">
                   <label for="delivery-map">Pin Your Delivery Location <span class="required">*</span></label>
                   <button type="button" id="btn-use-gps" class="btn-locate-me" title="Use current GPS location">
-                    &#x1F4CD; Use My Location
+                    <img src="/icons/ui/location.webp" class="btn-ui-icon-sm" alt="" /> Use My Location
                   </button>
                 </div>
                 <p class="map-help-text">Required &#8212; tap the map, drag the pin, or use GPS to mark your exact
@@ -302,9 +317,9 @@
             <div class="form-group" style="margin-bottom:0">
               <div class="toggle-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                 <input type="radio" name="payment-method" id="pay-cod" value="COD" checked />
-                <label for="pay-cod" style="padding:10px;text-align:center;">💵 Cash / COD</label>
+                <label for="pay-cod" style="padding:10px;text-align:center;"><img src="/icons/ui/card.webp" class="toggle-ui-icon" alt="" /> Cash / COD</label>
                 <input type="radio" name="payment-method" id="pay-gcash" value="GCash" />
-                <label for="pay-gcash" style="padding:10px;text-align:center;">📱 GCash</label>
+                <label for="pay-gcash" style="padding:10px;text-align:center;"><img src="/icons/ui/shield.webp" class="toggle-ui-icon" alt="" /> GCash</label>
               </div>
             </div>
             <div id="gcash-instructions" class="hidden"
@@ -315,9 +330,12 @@
               </p>
               <div
                 style="background:#fff; border:1px solid var(--green-300); border-radius:12px; margin: 0 auto; display:inline-block; padding:8px;">
-                <img src="gcash-qr.png" alt="GCash QR Code"
-                  style="width:160px; height:auto; display:block; border-radius:8px; cursor:zoom-in;"
-                  onclick="document.getElementById('image-modal-img').src=this.src; document.getElementById('image-modal').classList.remove('hidden');" />
+                <picture>
+                  <source srcset="/img/gcash-qr.webp" type="image/webp" />
+                  <img src="/img/gcash-qr.png" alt="GCash QR Code" loading="lazy" decoding="async"
+                    style="width:160px; height:auto; display:block; border-radius:8px; cursor:zoom-in;"
+                    onclick="document.getElementById('image-modal-img').src=this.currentSrc || this.src; document.getElementById('image-modal').classList.remove('hidden');" />
+                </picture>
               </div>
             </div>
           </div>
@@ -336,7 +354,7 @@
             <!-- Voucher Input Box -->
             <div class="checkout-voucher-input-box" id="checkout-voucher-input-box">
               <div class="checkout-voucher-field-wrap">
-                <span class="voucher-icon" aria-hidden="true">🎟️</span>
+                <span class="voucher-icon" aria-hidden="true"><img src="/icons/ui/discount.webp" class="voucher-field-icon-img" alt="" /></span>
                 <input type="text" id="checkout-voucher-input" class="checkout-voucher-input" placeholder="Enter voucher code" autocomplete="off" autocapitalize="characters" onkeypress="if(event.key==='Enter'){event.preventDefault();window.applyVoucherCode('checkout');}" />
               </div>
               <button type="button" class="voucher-apply-btn" id="checkout-voucher-apply-btn" onclick="window.applyVoucherCode('checkout')">
@@ -438,7 +456,7 @@
 
         <!-- ── Place Order ── -->
         <button class="place-order-btn" id="place-order-btn" type="button" style="margin-top:20px">
-          🍵 Place Order
+          <img src="/icons/ui/bamboo-whisk.webp" class="btn-ui-icon" alt="" /> Place Order
         </button>
       </div><!-- /wizard-step-3 -->
 
@@ -491,22 +509,22 @@
 
         <div class="status-steps" id="status-steps">
           <div class="step-item active" id="step-new">
-            <div class="step-icon-wrap"><span class="step-icon">📋</span></div>
+            <div class="step-icon-wrap"><img src="/icons/ui/package.webp" class="status-step-icon-img" alt="Received" /></div>
             <div class="step-label">Received</div>
           </div>
           <div class="step-line" id="line-1"></div>
           <div class="step-item" id="step-preparing">
-            <div class="step-icon-wrap"><span class="step-icon">👩‍🍳</span></div>
+            <div class="step-icon-wrap"><img src="/icons/ui/bamboo-whisk.webp" class="status-step-icon-img" alt="Preparing" /></div>
             <div class="step-label">Preparing</div>
           </div>
           <div class="step-line" id="line-2"></div>
           <div class="step-item" id="step-ready">
-            <div class="step-icon-wrap"><span class="step-icon" id="step-ready-icon">✅</span></div>
+            <div class="step-icon-wrap"><img src="/icons/ui/scooter.webp" id="step-ready-icon-img" class="status-step-icon-img" alt="Ready" /></div>
             <div class="step-label" id="step-ready-label">Ready</div>
           </div>
           <div class="step-line" id="line-3"></div>
           <div class="step-item" id="step-completed">
-            <div class="step-icon-wrap"><span class="step-icon">🎉</span></div>
+            <div class="step-icon-wrap"><img src="/icons/ui/gift.webp" class="status-step-icon-img" alt="Completed" /></div>
             <div class="step-label">Completed</div>
           </div>
         </div>
@@ -516,7 +534,8 @@
       <div class="order-chat-card" id="customer-chat-container">
         <div class="chat-header" onclick="toggleCustomerChat()">
           <div style="display:flex; align-items:center; gap:8px;">
-            <span>💬 Message Studio Midori</span>
+            <img src="/icons/ui/chat.webp" style="width:20px;height:20px;object-fit:contain;" alt="" />
+            <span>Message Studio Midori</span>
             <span class="chat-unread-badge hidden" id="customer-chat-badge">0</span>
           </div>
           <span style="font-size:12px; color:var(--text-soft)">Tap to toggle</span>
@@ -593,7 +612,7 @@
     <div class="sticky-cart-content">
       <div class="sticky-cart-info" onclick="window.openCartDrawer()" style="cursor:pointer;" title="Tap to view your cart">
         <div class="sticky-cart-info-top">
-          <span class="sticky-cart-icon">🛒</span>
+          <img src="/icons/ui/cart.webp" class="sticky-cart-icon-img" alt="Cart" />
           <span class="sticky-cart-count" id="sticky-cart-count">0 drinks</span>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
@@ -620,7 +639,7 @@
   <aside id="cart-drawer" class="cart-drawer hidden" aria-label="Shopping Cart Drawer" role="dialog" aria-modal="true">
     <div class="cart-drawer-header">
       <div class="cart-drawer-title-group">
-        <span class="cart-drawer-icon">🛒</span>
+        <img src="/icons/ui/cart.webp" class="drawer-header-icon-img" alt="Cart" />
         <h2>Your Cart</h2>
         <span class="cart-badge-pill" id="cart-drawer-count">0 drinks</span>
       </div>
@@ -767,7 +786,9 @@
   </div>
 
   <script type="module" src="notification.js"></script>
+  <script type="module" src="premium-ui.js"></script>
   <script type="module" src="app.js"></script>
+  <script type="module" src="pwa.js"></script>
 </body>
 
 </html>

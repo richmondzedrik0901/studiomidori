@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "optimize:images": "node scripts/optimize-images.mjs"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,7 @@
   },
   "homepage": "https://github.com/richmondzedrik0901/studiomidori#readme",
   "devDependencies": {
+    "sharp": "^0.35.5",
     "vite": "^8.3.1"
   }
 }

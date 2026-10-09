@@ -70,6 +70,90 @@ const DEFAULT_ADDONS = {
   'boba-pearls': { id: 'boba-pearls', name: 'Brown Sugar Pearls', price: 25, available: true },
 };
 
+const DEFAULT_INVENTORY = {
+  'uji-matcha-ceremonial': {
+    id: 'uji-matcha-ceremonial',
+    name: 'Ceremonial Uji Matcha Powder',
+    category: 'tea',
+    qty: 500,
+    unit: 'g',
+    threshold: 150,
+    lastUpdated: Date.now()
+  },
+  'classic-matcha-powder': {
+    id: 'classic-matcha-powder',
+    name: 'Classic Barista Matcha Powder',
+    category: 'tea',
+    qty: 750,
+    unit: 'g',
+    threshold: 200,
+    lastUpdated: Date.now()
+  },
+  'roasted-hojicha-powder': {
+    id: 'roasted-hojicha-powder',
+    name: 'Roasted Hojicha Powder',
+    category: 'tea',
+    qty: 450,
+    unit: 'g',
+    threshold: 120,
+    lastUpdated: Date.now()
+  },
+  'barista-oat-milk': {
+    id: 'barista-oat-milk',
+    name: 'Barista Oat Milk',
+    category: 'dairy',
+    qty: 12,
+    unit: 'cartons',
+    threshold: 4,
+    lastUpdated: Date.now()
+  },
+  'whole-fresh-milk': {
+    id: 'whole-fresh-milk',
+    name: 'Fresh Dairy Milk',
+    category: 'dairy',
+    qty: 16,
+    unit: 'cartons',
+    threshold: 5,
+    lastUpdated: Date.now()
+  },
+  'strawberry-puree': {
+    id: 'strawberry-puree',
+    name: 'Real Strawberry Purée',
+    category: 'syrups',
+    qty: 1200,
+    unit: 'ml',
+    threshold: 350,
+    lastUpdated: Date.now()
+  },
+  'brown-sugar-boba': {
+    id: 'brown-sugar-boba',
+    name: 'Brown Sugar Tapioca Pearls',
+    category: 'toppings',
+    qty: 800,
+    unit: 'g',
+    threshold: 250,
+    lastUpdated: Date.now()
+  },
+  'cups-16oz-lids': {
+    id: 'cups-16oz-lids',
+    name: '16oz Cold Cups & Dome Lids',
+    category: 'packaging',
+    qty: 140,
+    unit: 'pcs',
+    threshold: 40,
+    lastUpdated: Date.now()
+  },
+  'bamboo-paper-straws': {
+    id: 'bamboo-paper-straws',
+    name: 'Eco Paper Straws',
+    category: 'packaging',
+    qty: 180,
+    unit: 'pcs',
+    threshold: 50,
+    lastUpdated: Date.now()
+  }
+};
+
 // ── State ─────────────────────────────────────────────────────────────
 let currentTab              = 'ALL';
 let currentFirebaseKey      = null;  // Firebase key of the open order
@@ -82,11 +166,13 @@ let currentDrinkImageData   = '';    // Base64 or URL for modal preview
 let adminVouchers           = {};    // { [code]: voucherData }
 let livePresence            = {};    // { [sessionId]: presenceData }
 let dailyVisitors           = {};    // { [dateStr]: { [visitorId]: visitorData } }
+let adminInventory          = {};    // { [id]: inventoryItemData }
+let activeInventoryFilter   = 'all';
 let activeAnalyticsPreset   = 'today';
 
 // -- Navigation Section Switcher -------------------------------------------
 window.switchAdminSection = function(section) {
-  ['orders', 'menu', 'store', 'reports'].forEach(id => {
+  ['orders', 'menu', 'store', 'inventory', 'reports'].forEach(id => {
     const btn = document.getElementById('nav-btn-' + id);
     const sec = document.getElementById(id + '-section');
     if (btn) btn.classList.remove('active');
@@ -99,6 +185,7 @@ window.switchAdminSection = function(section) {
   if (activeSec) activeSec.classList.remove('hidden');
 
   if (section === 'reports' && window.generateReports) window.generateReports();
+  if (section === 'inventory' && window.renderInventory) window.renderInventory();
 
   sessionStorage.setItem('midori_admin_section', section);
 };
@@ -728,6 +815,18 @@ function startListeningMenu() {
   onValue(visitorsRef, (snapshot) => {
     dailyVisitors = snapshot.exists() ? snapshot.val() : {};
     if (window.generateReports) window.generateReports();
+  });
+
+  // 8. Listen for Inventory
+  const inventoryRef = ref(db, 'inventory');
+  onValue(inventoryRef, (snapshot) => {
+    if (snapshot.exists()) {
+      adminInventory = snapshot.val();
+    } else {
+      adminInventory = DEFAULT_INVENTORY;
+      set(inventoryRef, DEFAULT_INVENTORY).catch(err => console.warn('Could not seed inventory:', err));
+    }
+    if (window.renderInventory) window.renderInventory();
   });
 }
 
@@ -2170,6 +2269,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === e.currentTarget) window.closeVoucherModal();
   });
 
+  document.getElementById('inventory-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) window.closeInventoryModal();
+  });
+
   document.getElementById('voucher-form')?.addEventListener('submit', window.saveVoucher);
 });
 
@@ -2521,3 +2624,473 @@ window.generateReports = function() {
     }
   }
 };
+
+
+// ══════════════════════════════════════════════════════════════════════
+// CSV EXPORT MODULE
+// ══════════════════════════════════════════════════════════════════════
+
+function downloadCSV(csvContent, filename) {
+  // UTF-8 BOM ensures Excel displays UTF-8 (₱ symbols, emojis, etc.) properly
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function escapeCSV(val) {
+  if (val === null || val === undefined) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
+window.exportOrdersCSV = function() {
+  if (!allOrders || allOrders.length === 0) {
+    showToast('No orders available to export.');
+    return;
+  }
+
+  const rows = [
+    [
+      'Order Number',
+      'Date',
+      'Time / Preferred',
+      'Customer Name',
+      'Mobile',
+      'Fulfillment',
+      'Delivery Address',
+      'Payment Method',
+      'Status',
+      'Items Ordered',
+      'Total Cups',
+      'Subtotal (PHP)',
+      'Delivery Fee (PHP)',
+      'Discount Amount (PHP)',
+      'Voucher Code',
+      'Grand Total (PHP)'
+    ]
+  ];
+
+  allOrders.forEach(o => {
+    const dateStr = o.orderDate || (o.timestamp ? new Date(o.timestamp).toISOString().split('T')[0] : '');
+    const timeStr = o.preferredTime || '';
+    const itemsSummary = (o.items || []).map(i => {
+      const matcha = i.matcha ? ` [${i.matcha}]` : '';
+      const sweetness = i.sweetness ? ` (${i.sweetness})` : '';
+      return `${i.qty || 1}x ${i.name}${matcha}${sweetness}`;
+    }).join('; ');
+    const totalQty = (o.items || []).reduce((sum, i) => sum + (i.qty || 1), 0);
+
+    rows.push([
+      o.orderNumber || '',
+      dateStr,
+      timeStr,
+      o.name || '',
+      o.mobile || '',
+      o.deliveryType === 'delivery' ? 'Delivery' : 'Pickup',
+      o.address || '',
+      o.paymentMethod || 'COD',
+      o.status || 'NEW',
+      itemsSummary,
+      totalQty,
+      o.subtotal || 0,
+      o.deliveryFee || 0,
+      o.discountAmount || 0,
+      o.voucherCode || '',
+      o.total || 0
+    ]);
+  });
+
+  const csvContent = rows.map(r => r.map(escapeCSV).join(',')).join('\r\n');
+  const today = new Date().toISOString().split('T')[0];
+  downloadCSV(csvContent, `studio-midori-orders-${today}.csv`);
+  showToast('Orders exported to CSV! 📥');
+};
+
+window.exportAnalyticsCSV = function() {
+  const startInput = document.getElementById('report-date-start');
+  const endInput = document.getElementById('report-date-end');
+  const startStr = startInput?.value || new Date().toISOString().split('T')[0];
+  const endStr = endInput?.value || startStr;
+
+  const rangeOrders = allOrders.filter(o => {
+    const d = o.orderDate || new Date(o.timestamp || Date.now()).toISOString().split('T')[0];
+    return d >= startStr && d <= endStr;
+  });
+
+  const completedOrders = rangeOrders.filter(o => o.status === 'COMPLETED');
+  const totalSales = completedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+  const itemCounts = {};
+  rangeOrders.forEach(o => {
+    if (o.status === 'COMPLETED') {
+      (o.items || []).forEach(item => {
+        const qty = item.qty || 1;
+        if (!itemCounts[item.name]) itemCounts[item.name] = { qty: 0, revenue: 0 };
+        itemCounts[item.name].qty += qty;
+        itemCounts[item.name].revenue += ((item.unitPrice || item.price || 0) * qty);
+      });
+    }
+  });
+
+  const rows = [
+    ['Studio Midori - Analytics & Sales Report'],
+    ['Date Range', `${startStr} to ${endStr}`],
+    ['Report Generated', new Date().toLocaleString('en-PH')],
+    [''],
+    ['Executive Summary Metric', 'Value'],
+    ['Total Completed Sales (PHP)', totalSales],
+    ['Total Orders in Range', rangeOrders.length],
+    ['Completed Orders', completedOrders.length],
+    ['New / Pending Orders', rangeOrders.filter(o => o.status === 'NEW').length],
+    ['Preparing Orders', rangeOrders.filter(o => o.status === 'PREPARING').length],
+    ['Average Order Value (PHP)', completedOrders.length > 0 ? Math.round(totalSales / completedOrders.length) : 0],
+    [''],
+    ['Product Sales Breakdown'],
+    ['Drink Name', 'Cups Sold', 'Total Sales (PHP)']
+  ];
+
+  Object.entries(itemCounts)
+    .sort((a, b) => b[1].qty - a[1].qty)
+    .forEach(([name, data]) => {
+      rows.push([name, data.qty, data.revenue]);
+    });
+
+  const csvContent = rows.map(r => r.map(escapeCSV).join(',')).join('\r\n');
+  downloadCSV(csvContent, `studio-midori-sales-${startStr}-to-${endStr}.csv`);
+  showToast('Sales report exported to CSV! 📥');
+};
+
+window.exportInventoryCSV = function() {
+  const items = Object.values(adminInventory || {});
+  if (items.length === 0) {
+    showToast('No inventory records to export.');
+    return;
+  }
+
+  const rows = [
+    ['Item Name', 'Category', 'Current Stock', 'Unit', 'Threshold', 'Status', 'Last Updated']
+  ];
+
+  items.forEach(item => {
+    const qty = Number(item.qty || 0);
+    const threshold = Number(item.threshold || 0);
+    let status = 'In Stock';
+    if (qty <= 0) status = 'Out of Stock';
+    else if (qty <= threshold) status = 'Low Stock';
+
+    const lastUpdated = item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('en-PH') : '—';
+    rows.push([
+      item.name || '',
+      item.category || '',
+      qty,
+      item.unit || '',
+      threshold,
+      status,
+      lastUpdated
+    ]);
+  });
+
+  const csvContent = rows.map(r => r.map(escapeCSV).join(',')).join('\r\n');
+  const today = new Date().toISOString().split('T')[0];
+  downloadCSV(csvContent, `studio-midori-inventory-${today}.csv`);
+  showToast('Inventory exported to CSV! 📥');
+};
+
+
+// ══════════════════════════════════════════════════════════════════════
+// INVENTORY MANAGEMENT MODULE
+// ══════════════════════════════════════════════════════════════════════
+
+const CATEGORY_META = {
+  tea:       { label: 'Matcha & Teas', icon: '🍵' },
+  dairy:     { label: 'Milks & Dairy', icon: '🥛' },
+  syrups:    { label: 'Syrups & Purées', icon: '🍯' },
+  toppings:  { label: 'Toppings', icon: '🧋' },
+  packaging: { label: 'Cups & Packaging', icon: '🥤' },
+  other:     { label: 'Other', icon: '📦' },
+};
+
+window.renderInventory = function() {
+  const container = document.getElementById('inventory-items-container');
+  if (!container) return;
+
+  const items = Object.values(adminInventory || {});
+
+  // Compute KPI counts
+  let healthyCount = 0;
+  let lowCount = 0;
+  let outCount = 0;
+
+  items.forEach(item => {
+    const qty = Number(item.qty || 0);
+    const threshold = Number(item.threshold || 0);
+    if (qty <= 0) outCount++;
+    else if (qty <= threshold) lowCount++;
+    else healthyCount++;
+  });
+
+  const totalEl = document.getElementById('inv-kpi-total');
+  const healthyEl = document.getElementById('inv-kpi-healthy');
+  const lowEl = document.getElementById('inv-kpi-low');
+  const outEl = document.getElementById('inv-kpi-out');
+  if (totalEl) totalEl.textContent = items.length;
+  if (healthyEl) healthyEl.textContent = healthyCount;
+  if (lowEl) lowEl.textContent = lowCount;
+  if (outEl) outEl.textContent = outCount;
+
+  // Update nav badge with total needing attention
+  const badge = document.getElementById('nav-inventory-badge');
+  const attentionCount = lowCount + outCount;
+  if (badge) {
+    badge.textContent = attentionCount;
+    badge.classList.toggle('hidden', attentionCount === 0);
+  }
+
+  // Update filter pill counters
+  const allCountEl = document.getElementById('inv-filter-all-count');
+  const lowCountEl = document.getElementById('inv-filter-low-count');
+  const outCountEl = document.getElementById('inv-filter-out-count');
+  if (allCountEl) allCountEl.textContent = items.length;
+  if (lowCountEl) lowCountEl.textContent = lowCount;
+  if (outCountEl) outCountEl.textContent = outCount;
+
+  // Filter items based on active filter and search text
+  const searchInput = document.getElementById('inv-search-input');
+  const queryText = (searchInput?.value || '').trim().toLowerCase();
+
+  const filtered = items.filter(item => {
+    const qty = Number(item.qty || 0);
+    const threshold = Number(item.threshold || 0);
+
+    if (activeInventoryFilter === 'low' && (qty <= 0 || qty > threshold)) return false;
+    if (activeInventoryFilter === 'out' && qty > 0) return false;
+
+    if (queryText) {
+      const name = (item.name || '').toLowerCase();
+      const cat = (item.category || '').toLowerCase();
+      return name.includes(queryText) || cat.includes(queryText);
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🍃</div>
+        <p style="font-weight:700;">No items found matching the current filter.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="inv-grid">
+      ${filtered.map(item => {
+        const qty = Number(item.qty || 0);
+        const threshold = Number(item.threshold || 0);
+        const cat = CATEGORY_META[item.category] || CATEGORY_META.other;
+
+        let statusClass = 'inv-status-healthy';
+        let statusText = '🟢 In Stock';
+        let cardAlertClass = '';
+
+        if (qty <= 0) {
+          statusClass = 'inv-status-out';
+          statusText = '🔴 Out of Stock';
+          cardAlertClass = 'out-of-stock';
+        } else if (qty <= threshold) {
+          statusClass = 'inv-status-low';
+          statusText = '🟡 Low Stock';
+          cardAlertClass = 'low-stock';
+        }
+
+        // Stepper step size based on unit
+        const bigStep = (item.unit === 'cartons' || item.unit === 'L' || item.unit === 'kg') ? 5 : 10;
+
+        return `
+          <div class="inv-card ${cardAlertClass}">
+            <div class="inv-card-header">
+              <div>
+                <div class="inv-card-title">${item.name}</div>
+                <div class="inv-card-category">${cat.icon} ${cat.label}</div>
+              </div>
+              <span class="inv-status-badge ${statusClass}">${statusText}</span>
+            </div>
+
+            <div class="inv-qty-box">
+              <div>
+                <span class="inv-qty-num">${qty}</span>
+                <span class="inv-qty-unit">${item.unit || ''}</span>
+              </div>
+              <div class="inv-threshold-hint">Min alert: <b>${threshold}${item.unit || ''}</b></div>
+            </div>
+
+            <div class="inv-controls">
+              <div class="inv-stepper">
+                <button type="button" class="inv-step-btn" onclick="adjustInventoryQty('${item.id}', -${bigStep})" title="Subtract ${bigStep}">-${bigStep}</button>
+                <button type="button" class="inv-step-btn" onclick="adjustInventoryQty('${item.id}', -1)" title="Subtract 1">-1</button>
+                <button type="button" class="inv-step-btn" onclick="adjustInventoryQty('${item.id}', 1)" title="Add 1">+1</button>
+                <button type="button" class="inv-step-btn" onclick="adjustInventoryQty('${item.id}', ${bigStep})" title="Add ${bigStep}">+${bigStep}</button>
+              </div>
+              <div class="inv-action-btns">
+                <button type="button" class="inv-btn-icon" onclick="openEditInventoryModal('${item.id}')" title="Edit Item Details">✏️</button>
+                <button type="button" class="inv-btn-icon delete" onclick="deleteInventoryItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')" title="Delete Item">🗑️</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+};
+
+window.filterInventoryList = function() {
+  window.renderInventory();
+};
+
+window.setInventoryFilter = function(filter) {
+  activeInventoryFilter = filter;
+  ['all', 'low', 'out'].forEach(f => {
+    const btn = document.getElementById(`inv-filter-${f}`);
+    if (btn) btn.classList.toggle('active', f === filter);
+  });
+  window.renderInventory();
+};
+
+window.adjustInventoryQty = async function(id, delta) {
+  const item = adminInventory[id];
+  if (!item) return;
+
+  const currentQty = Number(item.qty || 0);
+  const newQty = Math.max(0, Math.round((currentQty + delta) * 100) / 100);
+
+  try {
+    await update(ref(db, `inventory/${id}`), {
+      qty: newQty,
+      lastUpdated: Date.now()
+    });
+  } catch (err) {
+    console.error('Failed to update inventory quantity:', err);
+    showToast('Failed to update stock. Check connection.');
+  }
+};
+
+window.openAddInventoryModal = function() {
+  const modal = document.getElementById('inventory-modal');
+  const title = document.getElementById('inventory-modal-title');
+  const idInput = document.getElementById('inv-edit-id');
+  const nameInput = document.getElementById('inv-name-input');
+  const catInput = document.getElementById('inv-category-input');
+  const qtyInput = document.getElementById('inv-qty-input');
+  const unitInput = document.getElementById('inv-unit-input');
+  const threshInput = document.getElementById('inv-threshold-input');
+
+  if (title) title.textContent = 'Add Inventory Item';
+  if (idInput) idInput.value = '';
+  if (nameInput) nameInput.value = '';
+  if (catInput) catInput.value = 'tea';
+  if (qtyInput) qtyInput.value = '';
+  if (unitInput) unitInput.value = 'g';
+  if (threshInput) threshInput.value = '50';
+
+  modal?.classList.add('open');
+  nameInput?.focus();
+};
+
+window.openEditInventoryModal = function(id) {
+  const item = adminInventory[id];
+  if (!item) return;
+
+  const modal = document.getElementById('inventory-modal');
+  const title = document.getElementById('inventory-modal-title');
+  const idInput = document.getElementById('inv-edit-id');
+  const nameInput = document.getElementById('inv-name-input');
+  const catInput = document.getElementById('inv-category-input');
+  const qtyInput = document.getElementById('inv-qty-input');
+  const unitInput = document.getElementById('inv-unit-input');
+  const threshInput = document.getElementById('inv-threshold-input');
+
+  if (title) title.textContent = 'Edit Inventory Item';
+  if (idInput) idInput.value = id;
+  if (nameInput) nameInput.value = item.name || '';
+  if (catInput) catInput.value = item.category || 'other';
+  if (qtyInput) qtyInput.value = item.qty || 0;
+  if (unitInput) unitInput.value = item.unit || '';
+  if (threshInput) threshInput.value = item.threshold || 0;
+
+  modal?.classList.add('open');
+  nameInput?.focus();
+};
+
+window.closeInventoryModal = function() {
+  document.getElementById('inventory-modal')?.classList.remove('open');
+};
+
+window.saveInventoryItem = async function(event) {
+  event.preventDefault();
+  const idInput = document.getElementById('inv-edit-id');
+  const nameInput = document.getElementById('inv-name-input');
+  const catInput = document.getElementById('inv-category-input');
+  const qtyInput = document.getElementById('inv-qty-input');
+  const unitInput = document.getElementById('inv-unit-input');
+  const threshInput = document.getElementById('inv-threshold-input');
+
+  const name = nameInput.value.trim();
+  const category = catInput.value;
+  const qty = Number(qtyInput.value) || 0;
+  const unit = unitInput.value.trim();
+  const threshold = Number(threshInput.value) || 0;
+
+  if (!name) return;
+
+  const id = idInput.value || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const payload = {
+    id,
+    name,
+    category,
+    qty,
+    unit,
+    threshold,
+    lastUpdated: Date.now()
+  };
+
+  const btn = document.getElementById('save-inventory-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+  }
+
+  try {
+    await set(ref(db, `inventory/${id}`), payload);
+    closeInventoryModal();
+    showToast(`Inventory item saved! 📦`);
+  } catch (err) {
+    console.error('Failed to save inventory item:', err);
+    showToast('Failed to save item. Check connection.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Save Item';
+    }
+  }
+};
+
+window.deleteInventoryItem = async function(id, name) {
+  if (!confirm(`Are you sure you want to delete "${name}" from inventory?`)) return;
+
+  try {
+    await remove(ref(db, `inventory/${id}`));
+    showToast(`Deleted ${name} ✓`);
+  } catch (err) {
+    console.error('Failed to delete inventory item:', err);
+    showToast('Failed to delete item.');
+  }
+};
+

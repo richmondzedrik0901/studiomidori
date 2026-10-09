@@ -5931,3 +5931,313 @@ input[type="text"].checkout-voucher-input::placeholder,
   height: 100%;
   transition: width 0.4s ease;
 }
+
+/* ── Inventory Section Styles ── */
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 16px;
+}
+
+.inv-card {
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: var(--shadow-card);
+}
+
+.inv-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.inv-card.low-stock {
+  border-color: #f59e0b;
+  background: #fffdf5;
+}
+
+.inv-card.out-of-stock {
+  border-color: #f43f5e;
+  background: #fff5f5;
+}
+
+.inv-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inv-card-title {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--green-900);
+  line-height: 1.3;
+}
+
+.inv-card-category {
+  font-size: 11.5px;
+  color: var(--text-soft);
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+.inv-status-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.inv-status-healthy {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.inv-status-low {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  animation: pulseWarning 2s infinite ease-in-out;
+}
+
+.inv-status-out {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+@keyframes pulseWarning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+.inv-qty-box {
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.inv-qty-num {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--green-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-qty-unit {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-soft);
+  margin-left: 4px;
+}
+
+.inv-threshold-hint {
+  font-size: 11px;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.inv-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(221, 216, 196, 0.4);
+}
+
+.inv-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inv-step-btn {
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  color: var(--green-800);
+  font-family: inherit;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.inv-step-btn:hover {
+  background: var(--green-100);
+  border-color: var(--green-500);
+  color: var(--green-900);
+}
+
+.inv-step-btn:active {
+  transform: scale(0.95);
+}
+
+.inv-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inv-btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px 7px;
+  font-size: 13px;
+  color: var(--text-soft);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.inv-btn-icon:hover {
+  color: var(--green-900);
+  background: var(--green-100);
+}
+
+.inv-btn-icon.delete:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+/* ── Custom Handcrafted Midori UI Icons ── */
+.header-cart-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+}
+
+.tab-ui-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.toggle-ui-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toggle-group input[type="radio"]:checked+label .toggle-ui-icon {
+  transform: scale(1.12);
+  filter: brightness(1.2);
+}
+
+.btn-ui-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.btn-ui-icon-sm {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.cart-strip-icon-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.sticky-cart-icon-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.drawer-header-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.cart-empty-img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(30, 45, 14, 0.15));
+  animation: floatEmptyCart 3s ease-in-out infinite;
+}
+
+@keyframes floatEmptyCart {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.step-card-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.voucher-field-icon-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.status-step-icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+.admin-nav-icon-img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 5px;
+}
