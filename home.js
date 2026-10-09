@@ -50,27 +50,79 @@ function initMobileDrawer() {
   });
 }
 
-// 3. Dynamic Schedule Status (Mon-Thu Advance vs Fri-Sun Live)
+// 3. Dynamic Schedule Status (Mon-Thu Advance vs Fri-Sun Live & 9 AM – 9 PM Hours)
 function initDynamicScheduleStatus() {
-  const day = new Date().getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   const isWeekendLive = (day === 0 || day === 5 || day === 6); // Fri, Sat, Sun
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const currentTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  const isWithinHours = currentTime >= '09:00' && currentTime <= '21:00';
 
   const liveBadge = document.getElementById('hero-schedule-badge');
   const announcementText = document.getElementById('top-announcement-text');
+  const friSunPill = document.getElementById('schedule-status-frisun');
+  const monThuPill = document.getElementById('schedule-status-monthu');
+  const hoursPill = document.getElementById('schedule-status-hours');
 
   if (liveBadge) {
     if (isWeekendLive) {
-      liveBadge.innerHTML = '<span class="status-dot green"></span> 🟢 Accepting Orders Today (Pickup & Delivery)';
+      if (isWithinHours) {
+        liveBadge.innerHTML = '<span class="status-dot green"></span> 🟢 Open Now: Accepting Orders (9 AM – 9 PM)';
+      } else {
+        liveBadge.innerHTML = '<span class="status-dot amber"></span> 🌙 Closed for Today (9 AM – 9 PM) · Advance Orders Open';
+      }
     } else {
-      liveBadge.innerHTML = '<span class="status-dot amber"></span> 📅 Mon–Thu: Pre-Orders Open (Advance Ordering)';
+      liveBadge.innerHTML = '<span class="status-dot amber"></span> 📅 Mon–Thu: Advance Orders Open (Batch Prep)';
     }
   }
 
   if (announcementText) {
     if (isWeekendLive) {
-      announcementText.innerHTML = '<strong>✨ Weekend Service:</strong> Same-day pickup & delivery available now in Bangued!';
+      if (isWithinHours) {
+        announcementText.innerHTML = '<strong>✨ Open Now (9 AM – 9 PM):</strong> Same-day pickup & delivery available in Bangued!';
+      } else {
+        announcementText.innerHTML = '<strong>🌙 Outside Hours (9 AM – 9 PM):</strong> Order Now opens at 9:00 AM · Advance orders welcome!';
+      }
     } else {
-      announcementText.innerHTML = '<strong>📌 Schedule Note:</strong> Mon–Thu advance orders only · Fri–Sun same-day & advance';
+      announcementText.innerHTML = '<strong>📌 Schedule Note:</strong> Mon–Thu advance orders only · Fri–Sun same-day (9 AM – 9 PM)';
+    }
+  }
+
+  // Update Section 6 Weekly Schedule pills if present
+  if (friSunPill) {
+    if (isWeekendLive) {
+      if (isWithinHours) {
+        friSunPill.className = 'status-pill-green';
+        friSunPill.textContent = 'Active Now (Open)';
+      } else {
+        friSunPill.className = 'status-pill-amber';
+        friSunPill.textContent = 'Active (Closed for Night)';
+      }
+    } else {
+      friSunPill.className = 'status-pill-amber';
+      friSunPill.textContent = 'Opens Friday (9 AM)';
+    }
+  }
+
+  if (monThuPill) {
+    if (!isWeekendLive) {
+      monThuPill.className = 'status-pill-green';
+      monThuPill.textContent = 'Active Today (Advance)';
+    } else {
+      monThuPill.className = 'status-pill-amber';
+      monThuPill.textContent = 'Advance Orders';
+    }
+  }
+
+  if (hoursPill) {
+    if (isWithinHours) {
+      hoursPill.className = 'status-pill-green';
+      hoursPill.textContent = 'Open Now';
+    } else {
+      hoursPill.className = 'status-pill-amber';
+      hoursPill.textContent = 'Opens 9:00 AM';
     }
   }
 }

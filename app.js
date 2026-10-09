@@ -1846,8 +1846,27 @@ function todayIsWeekday() {
   return isWeekday(getTodayDateString());
 }
 
+/**
+ * Returns true if the current local time is within store operating hours (9:00 AM – 9:00 PM).
+ */
+function isWithinOperatingHours() {
+  const now = getNowTimeString();
+  return now >= '09:00' && now <= '21:00';
+}
+
 function isBlackoutDate(dateStr) {
   return !!(storeSettings && Array.isArray(storeSettings.blackoutDates) && storeSettings.blackoutDates.includes(dateStr));
+}
+
+/**
+ * Returns true if "Order Now" (same-day order) is currently allowed.
+ * Order Now is only permitted on active days (Fri–Sun, unless forced by admin or blackout date)
+ * AND strictly within operating hours (9:00 AM – 9:00 PM).
+ */
+function isTodayOrderNowAllowed() {
+  if (isBlackoutDate(getTodayDateString())) return false;
+  if (todayIsWeekday() && !storeSettings.forceOrderNow) return false;
+  return isWithinOperatingHours();
 }
 
 function highlightTimeError() {
@@ -2002,31 +2021,42 @@ function setupDateTimeRules() {
     });
   });
 
-  const todayIsRestricted = todayIsWeekday() || isBlackoutDate(getTodayDateString());
+  function getTodayRestrictionReason() {
+    if (isBlackoutDate(getTodayDateString())) return 'We are closed today.';
+    if (todayIsWeekday() && !storeSettings.forceOrderNow) return 'Today is a weekday. Only advance orders are accepted.';
+    if (!isWithinOperatingHours()) return 'Order Now is only available from 9:00 AM to 9:00 PM. Please place an advance order.';
+    return null;
+  }
 
-  // Force Advance mode if today is a weekday or a blackout date
-  if (todayIsRestricted) {
-    if ($('timing-advance')) $('timing-advance').checked = true;
-    if ($('timing-today')) {
-      $('timing-today').disabled = true;
-      const labelToday = $('label-timing-today');
-      if (labelToday) {
-        labelToday.style.opacity = '0.5';
-        labelToday.style.cursor = 'not-allowed';
-        labelToday.title = isBlackoutDate(getTodayDateString()) ? 'We are closed today.' : 'Today is a weekday. Only advance orders are accepted.';
+  function updateOrderNowAvailability() {
+    const reason = getTodayRestrictionReason();
+    const timingToday = $('timing-today');
+    const labelToday = $('label-timing-today');
+    const timingAdvance = $('timing-advance');
+
+    if (reason) {
+      if (timingAdvance) timingAdvance.checked = true;
+      if (timingToday) {
+        timingToday.disabled = true;
+        if (labelToday) {
+          labelToday.style.opacity = '0.5';
+          labelToday.style.cursor = 'not-allowed';
+          labelToday.title = reason;
+        }
       }
-    }
-  } else {
-    if ($('timing-today')) {
-      $('timing-today').disabled = false;
-      const labelToday = $('label-timing-today');
-      if (labelToday) {
-        labelToday.style.opacity = '1';
-        labelToday.style.cursor = 'pointer';
-        labelToday.title = '';
+    } else {
+      if (timingToday) {
+        timingToday.disabled = false;
+        if (labelToday) {
+          labelToday.style.opacity = '1';
+          labelToday.style.cursor = 'pointer';
+          labelToday.title = 'Same-day order (9:00 AM – 9:00 PM)';
+        }
       }
     }
   }
+
+  updateOrderNowAvailability();
 
   function enforceDeliveryRule() {
     const isAdvance = $('timing-advance')?.checked;
@@ -2057,29 +2087,7 @@ function setupDateTimeRules() {
   }
 
   window.reapplyDateMin = () => {
-    const restricted = todayIsWeekday() || isBlackoutDate(getTodayDateString());
-    if (restricted) {
-      if ($('timing-today') && !$('timing-today').disabled) {
-        if ($('timing-advance')) $('timing-advance').checked = true;
-        $('timing-today').disabled = true;
-        const labelToday = $('label-timing-today');
-        if (labelToday) {
-          labelToday.style.opacity = '0.5';
-          labelToday.style.cursor = 'not-allowed';
-          labelToday.title = isBlackoutDate(getTodayDateString()) ? 'We are closed today.' : 'Today is a weekday. Only advance orders are accepted.';
-        }
-      }
-    } else {
-      if ($('timing-today') && $('timing-today').disabled) {
-        $('timing-today').disabled = false;
-        const labelToday = $('label-timing-today');
-        if (labelToday) {
-          labelToday.style.opacity = '1';
-          labelToday.style.cursor = 'pointer';
-          labelToday.title = '';
-        }
-      }
-    }
+    updateOrderNowAvailability();
     applyDateMin();
     enforceDeliveryRule();
   };
@@ -2093,8 +2101,11 @@ function setupDateTimeRules() {
     applyDateMin();
   });
 
-  // Real-time update: keep auto time fresh in real time every 10 seconds
-  setInterval(applyTimeMin, 10000);
+  // Real-time update: keep auto time and Order Now availability fresh in real time
+  setInterval(() => {
+    if (window.reapplyDateMin) window.reapplyDateMin();
+    else applyTimeMin();
+  }, 10000);
 }
 
 // ── Mobile Number Input Setup (Strict digits & formats) ──────────────
@@ -2217,6 +2228,11 @@ function validateForm() {
   }
 
   if (date === today) {
+    if (!isWithinOperatingHours()) {
+      showToast('⚠️ Same-day orders (Order Now) are only accepted between 9:00 AM and 9:00 PM.');
+      highlightTimeError();
+      return false;
+    }
     const minPrepTime = getOffsetTimeString(25);
     if (!isTodayMode || isUserCustomTime) {
       if (time < minPrepTime) {
@@ -2417,13 +2433,22 @@ async function placeOrder() {
 
       localStorage.setItem('midori_active_order', JSON.stringify(activeOrders));
 
-      // Clear persistence after successful order
+      // Clear persistence and cart after successful order
+      state.items = {};
       state.voucherCode = null;
       localStorage.removeItem('midori_order_state');
       localStorage.removeItem('midori_form_state');
+      updateSummary();
+      buildProductList();
+      if (typeof window.renderCartDrawer === 'function') {
+        window.renderCartDrawer();
+      }
     } catch (e) {
       console.warn('Could not save to localStorage:', e);
     }
+
+    btn.disabled = false;
+    btn.textContent = '🍵 Place Order';
 
     if (typeof trackUserActivity === 'function') {
       trackUserActivity(`Placed Order #${order.orderNumber}`);
@@ -3063,14 +3088,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  $('new-order-btn').addEventListener('click', () => {
-    location.reload();
+  $('new-order-btn')?.addEventListener('click', () => {
+    $('success-screen')?.classList.remove('visible');
+    $('success-screen')?.classList.add('hidden');
+    $('order-form-area')?.classList.remove('hidden');
+    if (typeof window.nextWizardStep === 'function') {
+      window.nextWizardStep(1);
+    }
+    checkActiveOrder();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   $('back-to-menu-btn')?.addEventListener('click', () => {
     $('success-screen')?.classList.remove('visible');
     $('success-screen')?.classList.add('hidden');
     $('order-form-area')?.classList.remove('hidden');
+    if (typeof window.nextWizardStep === 'function') {
+      window.nextWizardStep(1);
+    }
     checkActiveOrder();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
@@ -3143,6 +3178,11 @@ window.nextWizardStep = function (step) {
       return false;
     }
     if (date === today) {
+      if (!isWithinOperatingHours()) {
+        showToast('⚠️ Same-day orders (Order Now) are only accepted between 9:00 AM and 9:00 PM.');
+        highlightTimeError();
+        return false;
+      }
       if (!isTodayMode || isUserCustomTime) {
         const minPrepTime = getOffsetTimeString(25);
         if (time < minPrepTime) {
