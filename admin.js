@@ -381,8 +381,8 @@ function renderOrders() {
     let headerTitle = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
     if (isToday) headerTitle = `Today (${headerTitle})`;
     
-    html += `<div style="margin: 24px 0 12px; font-weight: 900; font-size: 16px; color: var(--green-900); border-bottom: 2px solid var(--green-200); padding-bottom: 6px; display:flex; align-items:center; gap:8px;">
-               <span style="font-size:20px">📅</span> <span>${headerTitle}</span>
+    html += `<div class="order-date-group-header">
+               <span style="font-size:18px">📅</span> <span>${headerTitle}</span>
              </div>`;
     
     html += groups[dateStr].map(order => {

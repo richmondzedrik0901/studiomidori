@@ -46,8 +46,14 @@
 
   <!-- ── Admin Header ── -->
   <header class="admin-header">
-    <div class="logo">Studio Midori</div>
-    <div style="display:flex;align-items:center;gap:10px">
+    <div class="admin-brand-wrap">
+      <picture>
+        <source srcset="/img/logo.webp" type="image/webp" />
+        <img src="/img/logo.png" alt="Studio Midori" class="admin-logo-img" />
+      </picture>
+      <span class="admin-brand-name">Studio Midori</span>
+    </div>
+    <div class="admin-header-right">
       <!-- Live Website Traffic Pill -->
       <div class="admin-live-badge" id="admin-live-badge" title="Live visitors browsing your website right now">
         <span class="live-dot-pulse"></span>
@@ -79,12 +85,12 @@
 
   <!-- ══ ORDERS SECTION ══ -->
   <div class="orders-container" id="orders-section">
-    <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Orders</h1>
-      <div style="display:flex; gap: 8px; flex-wrap:wrap;">
-        <button class="admin-primary-btn" onclick="exportOrdersCSV()" style="font-size:13px; padding:6px 14px; background:var(--green-700);">📥 Export CSV</button>
-        <button class="admin-primary-btn" onclick="openManualOrderModal()" style="font-size:13px; padding:6px 14px;">+ Add Manual Order</button>
-        <a href="index.html" style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
+    <div class="admin-section-head">
+      <h1 class="admin-section-title">Orders</h1>
+      <div class="admin-section-actions">
+        <button class="admin-primary-btn" onclick="exportOrdersCSV()" style="background:var(--green-700);">📥 Export CSV</button>
+        <button class="admin-primary-btn" onclick="openManualOrderModal()">+ Add Manual Order</button>
+        <a href="index.html" class="admin-link-btn">
           &#x1F375; Order Page &#x2197;
         </a>
       </div>
@@ -102,21 +108,21 @@
 
   <!-- ══ MENU SECTION ══ -->
   <div class="orders-container hidden" id="menu-section">
-    <div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800)">Menu</h1>
-      <a href="index.html" style="font-size:13px;font-weight:700;color:var(--green-600);text-decoration:none;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--white)">
-        &#x1F375; View Live Site &#x2197;
-      </a>
+    <div class="admin-section-head">
+      <h1 class="admin-section-title">Menu</h1>
+      <div class="admin-section-actions">
+        <a href="index.html" class="admin-link-btn">
+          &#x1F375; View Live Site &#x2197;
+        </a>
+      </div>
     </div>
 
     <!-- Sub-tabs -->
-    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);">
-      <button id="sub-tab-drinks" onclick="switchMenuTab('drinks')"
-        style="padding:10px 20px;border:none;background:none;font-weight:800;font-size:14px;color:var(--green-700);border-bottom:3px solid var(--green-600);margin-bottom:-2px;cursor:pointer;font-family:inherit;">
+    <div class="admin-sub-tabs">
+      <button id="sub-tab-drinks" class="admin-sub-tab-btn active" onclick="switchMenuTab('drinks')">
         &#x1F375; Drinks
       </button>
-      <button id="sub-tab-custom" onclick="switchMenuTab('custom')"
-        style="padding:10px 20px;border:none;background:none;font-weight:700;font-size:14px;color:var(--text-soft);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:inherit;">
+      <button id="sub-tab-custom" class="admin-sub-tab-btn" onclick="switchMenuTab('custom')">
         &#x2728; Customizations
       </button>
     </div>
@@ -265,20 +271,20 @@
 
   <!-- ══ INVENTORY SECTION ══ -->
   <div class="orders-container hidden" id="inventory-section">
-    <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div class="admin-section-head">
       <div>
-        <h1 style="font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:var(--green-800);margin:0">
+        <h1 class="admin-section-title">
           &#x1F4E6; Inventory &amp; Stock Levels
         </h1>
-        <div style="font-size:12.5px;color:var(--text-soft);margin-top:2px;font-weight:600">
+        <div class="admin-section-subtitle">
           Track matcha, dairy, syrups, and packaging with automatic low-stock alerts
         </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="admin-primary-btn" onclick="openAddInventoryModal()" style="font-size:13px; padding:6px 14px;">
+      <div class="admin-section-actions">
+        <button class="admin-primary-btn" onclick="openAddInventoryModal()">
           + Add Inventory Item
         </button>
-        <button class="admin-primary-btn" onclick="exportInventoryCSV()" style="font-size:13px; padding:6px 14px; background:var(--green-700);">
+        <button class="admin-primary-btn" onclick="exportInventoryCSV()" style="background:var(--green-700);">
           📥 Export CSV
         </button>
       </div>
@@ -309,13 +315,13 @@
     </div>
 
     <!-- Search & Filter Controls -->
-    <div class="admin-card" style="padding:14px; margin-bottom:16px;">
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;">
-        <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:220px;">
+    <div class="admin-card inv-search-card">
+      <div class="inv-filter-bar">
+        <div class="inv-search-wrap">
           <input type="text" id="inv-search-input" placeholder="Search inventory (e.g. matcha, milk, cup)..." 
-                 oninput="filterInventoryList()" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;" />
+                 oninput="filterInventoryList()" />
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div class="inv-filter-tabs">
           <button type="button" class="category-tab-btn active" id="inv-filter-all" onclick="setInventoryFilter('all')">All (<span id="inv-filter-all-count">0</span>)</button>
           <button type="button" class="category-tab-btn" id="inv-filter-low" onclick="setInventoryFilter('low')" style="color:#b45309;">⚠️ Low (<span id="inv-filter-low-count">0</span>)</button>
           <button type="button" class="category-tab-btn" id="inv-filter-out" onclick="setInventoryFilter('out')" style="color:#be123c;">🚨 Out (<span id="inv-filter-out-count">0</span>)</button>
@@ -518,7 +524,7 @@
   <!-- ══════════════════════════════════════════
        ORDER DETAIL MODAL (Bottom Sheet)
   ══════════════════════════════════════════ -->
-  <div class="modal-overlay" id="order-modal" role="dialog" aria-modal="true" aria-labelledby="modal-order-number">
+  <div class="modal-overlay" id="order-modal" role="dialog" aria-modal="true" aria-labelledby="modal-order-number" onclick="if(event.target===this) closeModal()">
 
     <div class="modal-sheet">
       <div class="modal-drag-bar"></div>
@@ -547,7 +553,7 @@
   <!-- ══════════════════════════════════════════
        DRINK EDIT / ADD MODAL
   ══════════════════════════════════════════ -->
-  <div class="modal-overlay" id="drink-modal" role="dialog" aria-modal="true" aria-labelledby="drink-modal-title">
+  <div class="modal-overlay" id="drink-modal" role="dialog" aria-modal="true" aria-labelledby="drink-modal-title" onclick="if(event.target===this) closeDrinkModal()">
     <div class="modal-sheet">
       <div class="modal-drag-bar"></div>
 
@@ -633,7 +639,7 @@
   <!-- ══════════════════════════════════════════
        MANUAL ORDER MODAL
   ══════════════════════════════════════════ -->
-  <div class="modal-overlay" id="manual-order-modal" role="dialog" aria-modal="true" aria-labelledby="manual-order-title">
+  <div class="modal-overlay" id="manual-order-modal" role="dialog" aria-modal="true" aria-labelledby="manual-order-title" onclick="if(event.target===this) closeManualOrderModal()">
     <div class="modal-sheet">
       <div class="modal-drag-bar"></div>
       <div class="modal-header">
@@ -682,7 +688,7 @@
   </div>
 
   <!-- Item Builder Sub-Modal -->
-  <div class="modal-overlay" id="manual-item-builder-modal" style="z-index: 3000;">
+  <div class="modal-overlay" id="manual-item-builder-modal" style="z-index: 3000;" onclick="if(event.target===this) closeManualItemBuilder()">
     <div class="modal-sheet">
       <div class="modal-header">
         <div class="modal-title">Add Drink to Order</div>
