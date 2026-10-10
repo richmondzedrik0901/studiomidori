@@ -44,13 +44,13 @@ Object.values(state.items).forEach(item => {
 });
 
 // Returns variation fingerprint so identical cup options group together with quantity
-function getVariationKey(productId, matcha, sweetness, addOns) {
+function getVariationKey(productId, matcha, sweetness, addOns, size = '12 oz') {
   const sortedAddOns = (addOns || [])
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id))
     .map(a => `${a.id}:${a.qty || 1}`)
     .join('|');
-  return `${productId}__${matcha || 'none'}__${sweetness || '100%'}__${sortedAddOns}`;
+  return `${productId}__${size || '12 oz'}__${matcha || 'none'}__${sweetness || '100%'}__${sortedAddOns}`;
 }
 
 // How many total cups does a product have across all customized variations in the cart?
@@ -291,9 +291,15 @@ function buildProductList() {
 }
 
 // ── Shopee-Style Drink Customization Modal Logic ──────────────────────
+const SIZE_PRICE_DELTA = {
+  '12 oz': 0,
+  '16 oz': 40,
+};
+
 let currentCustomizing = {
   productId: null,
   editingInstanceKey: null,
+  size: '12 oz',
   matcha: null,
   sweetness: '100%',
   addOns: [],
@@ -312,6 +318,7 @@ window.openCustomizationModal = function (productId, instanceKeyToEdit = null) {
     currentCustomizing = {
       productId,
       editingInstanceKey: instanceKeyToEdit,
+      size: inst.size || '12 oz',
       matcha: inst.matcha || (matchaChoices[0] || 'Classic'),
       sweetness: inst.sweetness || '100%',
       addOns: JSON.parse(JSON.stringify(inst.addOns || [])),
@@ -321,6 +328,7 @@ window.openCustomizationModal = function (productId, instanceKeyToEdit = null) {
     currentCustomizing = {
       productId,
       editingInstanceKey: null,
+      size: '12 oz',
       matcha: product.hasMatcha ? (matchaChoices[0] || 'Classic') : null,
       sweetness: '100%',
       addOns: [],
@@ -335,6 +343,14 @@ window.openCustomizationModal = function (productId, instanceKeyToEdit = null) {
     imgWrap.innerHTML = product.image
       ? `<img src="${product.image}" alt="${product.name}" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'product-img-fallback\\'>🍵</span>'" />`
       : `<span class="product-img-fallback">🍵</span>`;
+  }
+
+  // 0. Cup Size Selection (12 oz & 16 oz)
+  const is16oz = currentCustomizing.size === '16 oz';
+  $('size-chip-12oz')?.classList.toggle('active', !is16oz);
+  $('size-chip-16oz')?.classList.toggle('active', is16oz);
+  if ($('custom-size-selected')) {
+    $('custom-size-selected').textContent = is16oz ? '16 oz (+₱40)' : '12 oz (Regular)';
   }
 
   // 1. Matcha Cultivars (only if product has matcha)
@@ -449,6 +465,17 @@ window.closeCustomizationModal = function () {
   document.body.style.overflow = '';
 };
 
+window.selectCustomSize = function (size) {
+  currentCustomizing.size = size;
+  const is16oz = size === '16 oz';
+  $('size-chip-12oz')?.classList.toggle('active', !is16oz);
+  $('size-chip-16oz')?.classList.toggle('active', is16oz);
+  if ($('custom-size-selected')) {
+    $('custom-size-selected').textContent = is16oz ? '16 oz (+₱40)' : '12 oz (Regular)';
+  }
+  updateCustomModalPrice();
+};
+
 window.selectCustomMatcha = function (choice) {
   currentCustomizing.matcha = choice;
   document.querySelectorAll('#custom-matcha-chips .custom-choice-chip').forEach(btn => {
@@ -538,8 +565,9 @@ window.stepCustomQty = function (delta) {
 
 function updateCustomModalPrice() {
   const product = products.find(p => p.id === currentCustomizing.productId) || { price: 0 };
+  const sizeExtra = SIZE_PRICE_DELTA[currentCustomizing.size] || 0;
   const addOnTotal = (currentCustomizing.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
-  const singleCupTotal = (product.price || 0) + addOnTotal;
+  const singleCupTotal = (product.price || 0) + sizeExtra + addOnTotal;
   const grandTotal = singleCupTotal * (currentCustomizing.qty || 1);
 
   if ($('custom-modal-price')) $('custom-modal-price').textContent = `₱${singleCupTotal.toLocaleString()}`;
@@ -547,11 +575,12 @@ function updateCustomModalPrice() {
 }
 
 window.submitCustomization = function () {
-  const { productId, editingInstanceKey, matcha, sweetness, addOns, qty } = currentCustomizing;
+  const { productId, editingInstanceKey, size, matcha, sweetness, addOns, qty } = currentCustomizing;
   const product = products.find(p => p.id === productId);
   if (!product) return;
 
-  const targetKey = getVariationKey(productId, matcha, sweetness, addOns);
+  const cupSize = size || '12 oz';
+  const targetKey = getVariationKey(productId, matcha, sweetness, addOns, cupSize);
   const chosenQty = Math.max(1, qty || 1);
 
   if (editingInstanceKey) {
@@ -559,6 +588,7 @@ window.submitCustomization = function () {
       // Same options: update fields and quantity
       state.items[targetKey] = {
         productId,
+        size: cupSize,
         matcha,
         sweetness,
         addOns: JSON.parse(JSON.stringify(addOns)),
@@ -572,6 +602,7 @@ window.submitCustomization = function () {
       } else {
         state.items[targetKey] = {
           productId,
+          size: cupSize,
           matcha,
           sweetness,
           addOns: JSON.parse(JSON.stringify(addOns)),
@@ -587,6 +618,7 @@ window.submitCustomization = function () {
     } else {
       state.items[targetKey] = {
         productId,
+        size: cupSize,
         matcha,
         sweetness,
         addOns: JSON.parse(JSON.stringify(addOns)),
@@ -594,8 +626,8 @@ window.submitCustomization = function () {
       };
     }
     const msg = chosenQty > 1
-      ? `✓ Added ${chosenQty}x ${product.name} to cart! 🛒`
-      : `✓ Added ${product.name} to cart! 🛒`;
+      ? `✓ Added ${chosenQty}x ${product.name} (${cupSize}) to cart! 🛒`
+      : `✓ Added ${product.name} (${cupSize}) to cart! 🛒`;
     showToast(msg);
   }
 
@@ -660,13 +692,15 @@ window.renderCartDrawer = function () {
   let subtotal = 0;
   const itemsHtml = allItems.map(([variationKey, v]) => {
     const product = products.find(p => p.id === v.productId) || { name: 'Matcha Drink', price: 0 };
+    const sizeExtra = SIZE_PRICE_DELTA[v.size] || 0;
     const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
-    const unitPrice = (product.price || 0) + addOnTotal;
+    const unitPrice = (product.price || 0) + sizeExtra + addOnTotal;
     const qty = v.qty || 1;
     const lineTotal = unitPrice * qty;
     subtotal += lineTotal;
 
     let opts = [];
+    if (v.size) opts.push(v.size);
     if (v.matcha) opts.push(v.matcha);
     if (v.sweetness) opts.push(`${v.sweetness} sweet`);
     if (v.addOns && v.addOns.length) {
@@ -1634,13 +1668,15 @@ function updateSummary() {
   let subtotal = 0;
   const itemRows = allItems.map(([variationKey, v]) => {
     const product = products.find(p => p.id === v.productId) || { name: 'Item', price: 0 };
+    const sizeExtra = SIZE_PRICE_DELTA[v.size] || 0;
     const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
-    const unitPrice = (product.price || 0) + addOnTotal;
+    const unitPrice = (product.price || 0) + sizeExtra + addOnTotal;
     const qty = v.qty || 1;
     const lineTotal = unitPrice * qty;
     subtotal += lineTotal;
 
     let opts = [];
+    if (v.size) opts.push(v.size);
     if (v.matcha) opts.push(v.matcha);
     if (v.sweetness) opts.push(`${v.sweetness} sweet`);
     if (v.addOns && v.addOns.length) {
@@ -2290,8 +2326,9 @@ async function placeOrder() {
     const selectedItems = Object.entries(state.items)
       .map(([variationKey, v]) => {
         const product = products.find(p => p.id === v.productId) || { name: 'Custom Drink', price: 0 };
+        const sizeExtra = SIZE_PRICE_DELTA[v.size] || 0;
         const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
-        const unitPrice = (product.price || 0) + addOnTotal;
+        const unitPrice = (product.price || 0) + sizeExtra + addOnTotal;
         const qty = v.qty || 1;
         const lineTotal = unitPrice * qty;
         subtotal += lineTotal;
@@ -2304,6 +2341,7 @@ async function placeOrder() {
           unitPrice,
           qty,
           lineTotal,
+          size: v.size || '12 oz',
           matcha: v.matcha || null,
           sweetness: v.sweetness || null,
           addOns: v.addOns || [],
@@ -2777,6 +2815,7 @@ function showSuccessScreen(order, orderKey) {
 
   const itemLines = order.items.map(i => {
     let parts = [`${i.name} ×${i.qty}`];
+    if (i.size) parts.push(i.size);
     if (i.matcha) parts.push(i.matcha);
     if (i.sweetness) parts.push(`${i.sweetness} sweet`);
     if (i.addOns && i.addOns.length) {

@@ -508,6 +508,7 @@ function renderModal(order) {
 
   const itemRows = (order.items || []).map(i => {
     let sub = [];
+    if (i.size) sub.push(i.size);
     if (i.matcha) sub.push(i.matcha);
     if (i.sweetness) sub.push(`${i.sweetness} sweet`);
     if (i.addOns && i.addOns.length) {
@@ -1899,6 +1900,7 @@ function renderManualOrderCart() {
     grandTotal += item.price * item.qty;
     
     let sub = [];
+    if (item.size) sub.push(item.size);
     if (item.matcha) sub.push(item.matcha);
     if (item.sweetness) sub.push(`${item.sweetness} sweet`);
     if (item.addOns && item.addOns.length) {
@@ -1987,6 +1989,7 @@ window.onManualDrinkSelect = function() {
   }).join('');
   
   document.getElementById('manual-item-sweetness').value = '100%';
+  if (document.getElementById('manual-item-size')) document.getElementById('manual-item-size').value = '12 oz';
   document.getElementById('manual-item-qty').value = '1';
 };
 
@@ -2006,6 +2009,12 @@ window.confirmManualItem = function() {
   
   let itemPrice = product.price || 0;
   
+  const sizeSelect = document.getElementById('manual-item-size');
+  const size = sizeSelect ? sizeSelect.value : '12 oz';
+  if (size === '16 oz') {
+    itemPrice += 40;
+  }
+
   let matcha = null;
   if (product.hasMatcha !== false && adminMatchaChoices.length > 0) {
     matcha = document.getElementById('manual-item-matcha').value;
@@ -2040,6 +2049,7 @@ window.confirmManualItem = function() {
     price: itemPrice,
     unitPrice: itemPrice,
     qty: qty,
+    size,
     matcha,
     sweetness,
     addOns
@@ -2681,9 +2691,10 @@ window.exportOrdersCSV = function() {
     const dateStr = o.orderDate || (o.timestamp ? new Date(o.timestamp).toISOString().split('T')[0] : '');
     const timeStr = o.preferredTime || '';
     const itemsSummary = (o.items || []).map(i => {
+      const size = i.size ? ` [${i.size}]` : '';
       const matcha = i.matcha ? ` [${i.matcha}]` : '';
       const sweetness = i.sweetness ? ` (${i.sweetness})` : '';
-      return `${i.qty || 1}x ${i.name}${matcha}${sweetness}`;
+      return `${i.qty || 1}x ${i.name}${size}${matcha}${sweetness}`;
     }).join('; ');
     const totalQty = (o.items || []).reduce((sum, i) => sum + (i.qty || 1), 0);
 

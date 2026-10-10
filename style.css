@@ -3452,6 +3452,57 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 0 0 2px rgba(61, 90, 30, 0.15);
 }
 
+/* Cup Size Buttons */
+.custom-size-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.size-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--text-dark);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.size-chip-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.size-chip-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.size-chip:hover {
+  border-color: var(--green-400);
+  background: var(--green-50);
+}
+
+.size-chip.active {
+  background: var(--green-600);
+  border-color: var(--green-600);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(61, 90, 30, 0.25);
+}
+
+.size-chip.active .size-chip-sub {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 /* Sweetness Buttons */
 .custom-sweetness-buttons {
   display: grid;

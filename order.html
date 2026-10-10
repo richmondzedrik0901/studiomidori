@@ -740,6 +740,24 @@
       </div>
 
       <div class="customization-modal-body" id="customization-modal-body">
+        <!-- Cup Size Chips (12 oz & 16 oz) -->
+        <div class="custom-option-section" id="custom-size-section">
+          <div class="custom-section-header">
+            <label class="custom-section-label">🥤 Cup Size</label>
+            <span class="custom-section-selected" id="custom-size-selected">12 oz (Regular)</span>
+          </div>
+          <div class="custom-size-buttons" id="custom-size-buttons">
+            <button type="button" class="size-chip active" id="size-chip-12oz" onclick="window.selectCustomSize('12 oz')">
+              <span class="size-chip-name">12 oz</span>
+              <span class="size-chip-sub">Regular</span>
+            </button>
+            <button type="button" class="size-chip" id="size-chip-16oz" onclick="window.selectCustomSize('16 oz')">
+              <span class="size-chip-name">16 oz</span>
+              <span class="size-chip-sub">+₱40</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Matcha Cultivar Chips -->
         <div class="custom-option-section" id="custom-matcha-section">
           <label class="custom-section-label">🍵 Matcha Cultivar</label>

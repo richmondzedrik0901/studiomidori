@@ -45,6 +45,7 @@ export function formatTime(timeStr) {
 export function formatOrderMessage(order) {
   const itemLines = order.items.map(item => {
     let line = `  • ${item.name} x${item.qty}`;
+    if (item.size) line += ` [${item.size}]`;
     if (item.matcha) line += ` (${item.matcha})`;
     if (item.sweetness) line += ` – ${item.sweetness} sweet`;
     if (item.addOns && item.addOns.length) {
