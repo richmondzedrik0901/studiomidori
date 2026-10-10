@@ -348,6 +348,7 @@
               <div style="position:relative; margin-bottom:10px;">
                 <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:800; color:var(--green-800); font-size:15px;">₱</span>
                 <input type="number" id="cash-amount" min="0" step="1" placeholder="e.g. 500"
+                  oninput="window.updateCashChangeFeedback()" onchange="window.updateCashChangeFeedback()" onkeyup="window.updateCashChangeFeedback()"
                   style="width:100%; box-sizing:border-box; padding:10px 12px 10px 28px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:14.5px; font-weight:700; color:var(--green-900); outline:none;" />
               </div>
               <!-- Quick bill suggestion chips -->
@@ -358,9 +359,9 @@
                 <button type="button" class="cash-chip" onclick="window.setCashTender(1000)">₱1,000</button>
               </div>
               <!-- Live Change Feedback -->
-              <div id="cash-change-feedback" class="hidden" style="margin-top:8px; font-size:13px; padding:8px 12px; border-radius:8px; background:var(--green-50); color:var(--green-800); font-weight:700; border:1px solid var(--green-200); display:flex; justify-content:space-between; align-items:center;">
-                <span>Estimated Change:</span>
-                <span id="cash-change-amount" style="font-size:14.5px; font-weight:900; color:var(--green-700);">₱0</span>
+              <div id="cash-change-feedback" class="hidden" style="margin-top:8px; font-size:13px; padding:10px 14px; border-radius:8px; background:var(--green-50); color:var(--green-800); font-weight:700; border:1px solid var(--green-200); display:none; justify-content:space-between; align-items:center;">
+                <span id="cash-change-label">Estimated Change:</span>
+                <span id="cash-change-amount" style="font-size:15px; font-weight:900; color:var(--green-700);">₱0</span>
               </div>
             </div>
             <div id="gcash-instructions" class="hidden"

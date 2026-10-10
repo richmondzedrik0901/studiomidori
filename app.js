@@ -3189,44 +3189,82 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDateTimeRules();
 
   // Payment Method toggles & Cash Change logic
+  window.getCurrentOrderTotal = function () {
+    if (typeof window.currentOrderGrandTotal === 'number' && window.currentOrderGrandTotal > 0) {
+      return window.currentOrderGrandTotal;
+    }
+    const sumTotalText = $('summary-total')?.textContent || '';
+    const parsed = parseFloat(sumTotalText.replace(/[^0-9.]/g, ''));
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+
+    // Direct calculation fallback from state
+    let sub = 0;
+    Object.values(state.items || {}).forEach(v => {
+      const prod = (products || []).find(p => p.id === v.productId) || { price: 0 };
+      const sizeExtra = SIZE_PRICE_DELTA[v.size] || 0;
+      const addOnTotal = (v.addOns || []).reduce((sum, a) => sum + ((a.price || 0) * (a.qty || 1)), 0);
+      sub += ((prod.price || 0) + sizeExtra + addOnTotal) * (v.qty || 1);
+    });
+    const fee = state.deliveryType === 'delivery' ? (DELIVERY_FEE || 0) : 0;
+    return Math.max(0, sub + fee);
+  };
+
   window.updateCashChangeFeedback = function () {
     const cashInput = $('cash-amount');
     const feedback = $('cash-change-feedback');
     const changeAmountEl = $('cash-change-amount');
-    if (!cashInput || !feedback || !changeAmountEl) return;
+    const labelEl = $('cash-change-label');
+    if (!cashInput || !feedback) return;
 
-    const val = parseFloat(cashInput.value);
-    const total = window.currentOrderGrandTotal || 0;
+    const rawVal = cashInput.value.trim();
+    const val = parseFloat(rawVal);
+    const total = window.getCurrentOrderTotal();
 
-    if (isNaN(val) || val <= 0) {
+    if (!rawVal || isNaN(val) || val <= 0) {
       feedback.classList.add('hidden');
+      feedback.style.display = 'none';
       return;
     }
 
     feedback.classList.remove('hidden');
+    feedback.style.display = 'flex';
+
     if (val < total) {
+      const shortAmount = Math.round(total - val);
       feedback.style.background = '#fef2f2';
       feedback.style.borderColor = '#fca5a5';
       feedback.style.color = '#991b1b';
-      feedback.innerHTML = `<span>Amount tendered:</span> <span style="font-weight:800;">Short by ₱${Math.round(total - val).toLocaleString()}</span>`;
+      if (labelEl) labelEl.textContent = 'Amount tendered:';
+      if (changeAmountEl) {
+        changeAmountEl.style.color = '#dc2626';
+        changeAmountEl.textContent = `Short by ₱${shortAmount.toLocaleString()}`;
+      }
     } else if (val === total) {
       feedback.style.background = 'var(--green-50)';
       feedback.style.borderColor = 'var(--green-200)';
       feedback.style.color = 'var(--green-800)';
-      feedback.innerHTML = `<span>Exact amount:</span> <span style="font-weight:900;color:var(--green-700)">No change needed 👍</span>`;
+      if (labelEl) labelEl.textContent = 'Exact amount:';
+      if (changeAmountEl) {
+        changeAmountEl.style.color = 'var(--green-700)';
+        changeAmountEl.textContent = 'No change needed 👍';
+      }
     } else {
-      const change = val - total;
+      const change = Math.round(val - total);
       feedback.style.background = 'var(--green-50)';
       feedback.style.borderColor = 'var(--green-200)';
       feedback.style.color = 'var(--green-800)';
-      feedback.innerHTML = `<span>Estimated Change:</span> <span style="font-weight:900;color:var(--green-700);font-size:15px;">₱${Math.round(change).toLocaleString()}</span>`;
+      if (labelEl) labelEl.textContent = 'Estimated Change:';
+      if (changeAmountEl) {
+        changeAmountEl.style.color = 'var(--green-700)';
+        changeAmountEl.textContent = `₱${change.toLocaleString()}`;
+      }
     }
   };
 
   window.setCashTender = function (amount) {
     const cashInput = $('cash-amount');
     if (!cashInput) return;
-    const total = window.currentOrderGrandTotal || 0;
+    const total = window.getCurrentOrderTotal();
 
     if (amount === 'exact') {
       cashInput.value = total > 0 ? Math.ceil(total) : '';
@@ -3241,10 +3279,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateCashChangeFeedback();
   };
 
-  $('cash-amount')?.addEventListener('input', () => {
-    document.querySelectorAll('#cash-quick-chips .cash-chip').forEach(btn => btn.classList.remove('active'));
-    window.updateCashChangeFeedback();
-  });
+  const cashInputEl = $('cash-amount');
+  if (cashInputEl) {
+    ['input', 'keyup', 'change', 'blur'].forEach(evt => {
+      cashInputEl.addEventListener(evt, () => {
+        document.querySelectorAll('#cash-quick-chips .cash-chip').forEach(btn => btn.classList.remove('active'));
+        window.updateCashChangeFeedback();
+      });
+    });
+  }
 
   document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
