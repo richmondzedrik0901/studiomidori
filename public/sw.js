@@ -14,6 +14,8 @@ const PRECACHE_ASSETS = [
   '/favicon-32.png',
   '/img/logo.webp',
   '/img/logo.png',
+  '/img/logo-green.webp',
+  '/img/logo-green.png',
   '/img/gcash-qr.webp',
   '/img/gcash-qr.png',
   '/icons/icon-192.png',
