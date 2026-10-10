@@ -609,6 +609,15 @@ function renderModal(order) {
         <span>Total</span>
         <span>₱${(order.total || 0).toLocaleString()}</span>
       </div>
+      ${(order.paymentMethod !== 'GCash' && order.cashAmount) ? `
+      <div class="modal-total-row" style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); font-size:13.5px; color:var(--text);">
+        <span>💵 Cash Tendered:</span>
+        <span style="font-weight:700;">₱${order.cashAmount.toLocaleString()}</span>
+      </div>
+      <div class="modal-total-row" style="font-size:14px; font-weight:800; color:var(--green-800); background:var(--green-50); padding:6px 10px; border-radius:6px; margin-top:4px;">
+        <span>🪙 Change to Prepare:</span>
+        <span style="font-size:15px; color:var(--green-700);">${(order.changeAmount && order.changeAmount > 0) ? `₱${order.changeAmount.toLocaleString()}` : (order.cashAmount === order.total ? 'Exact (No change)' : 'None')}</span>
+      </div>` : ''}
     </div>
 
     <div class="modal-section-title" style="margin-top:24px">Chat with Customer</div>
@@ -2683,7 +2692,9 @@ window.exportOrdersCSV = function() {
       'Delivery Fee (PHP)',
       'Discount Amount (PHP)',
       'Voucher Code',
-      'Grand Total (PHP)'
+      'Grand Total (PHP)',
+      'Cash Tendered (PHP)',
+      'Change to Prepare (PHP)'
     ]
   ];
 
@@ -2714,7 +2725,9 @@ window.exportOrdersCSV = function() {
       o.deliveryFee || 0,
       o.discountAmount || 0,
       o.voucherCode || '',
-      o.total || 0
+      o.total || 0,
+      o.cashAmount || '',
+      o.changeAmount || ''
     ]);
   });
 

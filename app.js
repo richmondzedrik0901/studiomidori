@@ -1773,6 +1773,11 @@ function updateSummary() {
   }
   if ($('summary-total')) $('summary-total').textContent = `\u20b1${total.toLocaleString()}`;
 
+  window.currentOrderGrandTotal = total;
+  if (typeof window.updateCashChangeFeedback === 'function') {
+    window.updateCashChangeFeedback();
+  }
+
   renderVoucherElements(currentVoucher, discountAmount, subtotal);
 
   // 6. Update Sticky Cart on Mobile & Desktop
@@ -2392,6 +2397,12 @@ async function placeOrder() {
       orderDate: $('order-date').value,
       preferredTime: ($('timing-today')?.checked && !isUserCustomTime) ? getOffsetTimeString(25) : $('preferred-time').value,
       paymentMethod: document.querySelector('input[name="payment-method"]:checked')?.value || 'COD',
+      cashAmount: (document.querySelector('input[name="payment-method"]:checked')?.value || 'COD') === 'COD' && $('cash-amount')?.value
+        ? parseFloat($('cash-amount').value) || null
+        : null,
+      changeAmount: (document.querySelector('input[name="payment-method"]:checked')?.value || 'COD') === 'COD' && $('cash-amount')?.value && (parseFloat($('cash-amount').value) > total)
+        ? Math.round(parseFloat($('cash-amount').value) - total)
+        : null,
       items: selectedItems,
       subtotal,
       deliveryFee,
@@ -2845,6 +2856,31 @@ function showSuccessScreen(order, orderKey) {
     : 'Free';
   $('success-total').textContent = `₱${(order.total || 0).toLocaleString()}`;
 
+  // Payment method and cash change display
+  const payEl = $('success-payment');
+  if (payEl) {
+    if (order.paymentMethod === 'GCash') {
+      payEl.innerHTML = '<span style="color:var(--green-700);font-weight:800;">📱 GCash</span>';
+    } else {
+      const tenderInfo = order.cashAmount ? ` (Paying ₱${order.cashAmount.toLocaleString()})` : '';
+      payEl.innerHTML = `<span>💵 Cash / COD${tenderInfo}</span>`;
+    }
+  }
+
+  const changeRow = $('success-change-row');
+  const changeEl = $('success-change');
+  if (changeRow && changeEl) {
+    if (order.changeAmount && order.changeAmount > 0) {
+      changeRow.classList.remove('hidden');
+      changeEl.textContent = `₱${order.changeAmount.toLocaleString()}`;
+    } else if (order.cashAmount && order.cashAmount === order.total) {
+      changeRow.classList.remove('hidden');
+      changeEl.textContent = `Exact amount (No change)`;
+    } else {
+      changeRow.classList.add('hidden');
+    }
+  }
+
   // Start real-time status listener
   listenToOrderStatus(orderKey, order.deliveryType);
   initCustomerChat(orderKey);
@@ -3152,18 +3188,77 @@ document.addEventListener('DOMContentLoaded', () => {
   // Apply date/time scheduling rules (weekdays = advance only, Fri–Sun = same-day allowed)
   setupDateTimeRules();
 
-  // Payment Method toggles
+  // Payment Method toggles & Cash Change logic
+  window.updateCashChangeFeedback = function () {
+    const cashInput = $('cash-amount');
+    const feedback = $('cash-change-feedback');
+    const changeAmountEl = $('cash-change-amount');
+    if (!cashInput || !feedback || !changeAmountEl) return;
+
+    const val = parseFloat(cashInput.value);
+    const total = window.currentOrderGrandTotal || 0;
+
+    if (isNaN(val) || val <= 0) {
+      feedback.classList.add('hidden');
+      return;
+    }
+
+    feedback.classList.remove('hidden');
+    if (val < total) {
+      feedback.style.background = '#fef2f2';
+      feedback.style.borderColor = '#fca5a5';
+      feedback.style.color = '#991b1b';
+      feedback.innerHTML = `<span>Amount tendered:</span> <span style="font-weight:800;">Short by ₱${Math.round(total - val).toLocaleString()}</span>`;
+    } else if (val === total) {
+      feedback.style.background = 'var(--green-50)';
+      feedback.style.borderColor = 'var(--green-200)';
+      feedback.style.color = 'var(--green-800)';
+      feedback.innerHTML = `<span>Exact amount:</span> <span style="font-weight:900;color:var(--green-700)">No change needed 👍</span>`;
+    } else {
+      const change = val - total;
+      feedback.style.background = 'var(--green-50)';
+      feedback.style.borderColor = 'var(--green-200)';
+      feedback.style.color = 'var(--green-800)';
+      feedback.innerHTML = `<span>Estimated Change:</span> <span style="font-weight:900;color:var(--green-700);font-size:15px;">₱${Math.round(change).toLocaleString()}</span>`;
+    }
+  };
+
+  window.setCashTender = function (amount) {
+    const cashInput = $('cash-amount');
+    if (!cashInput) return;
+    const total = window.currentOrderGrandTotal || 0;
+
+    if (amount === 'exact') {
+      cashInput.value = total > 0 ? Math.ceil(total) : '';
+    } else {
+      cashInput.value = amount;
+    }
+
+    document.querySelectorAll('#cash-quick-chips .cash-chip').forEach(btn => {
+      btn.classList.toggle('active', (amount === 'exact' && btn.textContent.includes('Exact')) || btn.textContent.includes(amount));
+    });
+
+    window.updateCashChangeFeedback();
+  };
+
+  $('cash-amount')?.addEventListener('input', () => {
+    document.querySelectorAll('#cash-quick-chips .cash-chip').forEach(btn => btn.classList.remove('active'));
+    window.updateCashChangeFeedback();
+  });
+
   document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
       const gcash = $('gcash-instructions');
-      if (!gcash) return;
+      const cod = $('cod-instructions');
       if (e.target.value === 'GCash') {
-        gcash.classList.remove('hidden');
+        gcash?.classList.remove('hidden');
+        cod?.classList.add('hidden');
       } else {
-        gcash.classList.add('hidden');
+        gcash?.classList.add('hidden');
+        cod?.classList.remove('hidden');
+        window.updateCashChangeFeedback();
       }
     });
-
   });
 });
 

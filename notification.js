@@ -75,6 +75,16 @@ export function formatOrderMessage(order) {
     }
   }
 
+  let paymentInfo = `Payment: ${order.paymentMethod === 'GCash' ? '📱 GCash' : '💵 Cash / COD'}`;
+  if (order.paymentMethod !== 'GCash' && order.cashAmount) {
+    paymentInfo += ` (Paying ₱${order.cashAmount.toLocaleString()}`;
+    if (order.changeAmount && order.changeAmount > 0) {
+      paymentInfo += ` → Prepare Change: ₱${order.changeAmount.toLocaleString()})`;
+    } else {
+      paymentInfo += ` → Exact amount)`;
+    }
+  }
+
   return `🍵 NEW STUDIO MIDORI ORDER
 
 Order #: ${order.orderNumber}
@@ -85,6 +95,7 @@ FB Name: ${order.fbName}
 Type: ${order.deliveryType === 'pickup' ? '🏪 Pickup' : '🛵 Delivery'}${deliveryInfo}
 Date: ${order.orderDate}
 ${order.deliveryType === 'delivery' ? 'Delivery Time' : 'Pick-up Time'}: ${formatTime(order.preferredTime)}
+${paymentInfo}
 
 Items:
 ${itemLines}

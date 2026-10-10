@@ -3503,6 +3503,32 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   color: rgba(255, 255, 255, 0.9);
 }
 
+/* Quick cash chips */
+.cash-chip {
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--green-900);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+}
+
+.cash-chip:hover {
+  border-color: var(--green-500);
+  background: var(--green-50);
+  color: var(--green-800);
+}
+
+.cash-chip.active {
+  background: var(--green-800);
+  color: #fff;
+  border-color: var(--green-800);
+}
+
 /* Sweetness Buttons */
 .custom-sweetness-buttons {
   display: grid;
