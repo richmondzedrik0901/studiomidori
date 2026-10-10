@@ -592,13 +592,42 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: var(--green-900);
-  font-size: 15px;
-  font-weight: 900;
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: var(--radius-full);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.price-size-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.price-size-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.price-size-val {
+  font-size: 14.5px;
+  font-weight: 900;
+  color: var(--green-900);
+}
+
+.price-size-divider {
+  color: var(--border);
+  font-size: 12px;
+  font-weight: 300;
 }
 
 .drink-card-content {
