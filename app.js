@@ -2692,14 +2692,20 @@ function listenToOrderStatus(orderKey, deliveryType) {
     // Synchronize live tracker with current status in real-time
     updateStatusTracker(status, currentDeliveryType);
 
-    // Keep active order in localStorage up to date
+    // Keep active order in localStorage up to date, or remove if finished/cancelled
     try {
       let stored = JSON.parse(localStorage.getItem('midori_active_order') || '[]');
       if (Array.isArray(stored)) {
-        const item = stored.find(o => o.key === orderKey);
-        if (item) {
-          item.orderData = { ...item.orderData, ...orderData, status };
-          localStorage.setItem('midori_active_order', JSON.stringify(stored));
+        if (status === 'COMPLETED' || status === 'CANCELLED') {
+          stored = stored.filter(o => o.key !== orderKey);
+          if (stored.length === 0) localStorage.removeItem('midori_active_order');
+          else localStorage.setItem('midori_active_order', JSON.stringify(stored));
+        } else {
+          const item = stored.find(o => o.key === orderKey);
+          if (item) {
+            item.orderData = { ...item.orderData, ...orderData, status };
+            localStorage.setItem('midori_active_order', JSON.stringify(stored));
+          }
         }
       }
     } catch (e) { }
@@ -2905,10 +2911,15 @@ function checkActiveOrder() {
       }
     } catch (e) { }
 
-    // If order was placed in last 12 hours, keep it
+    // If order was placed in last 12 hours and is not COMPLETED or CANCELLED, keep it
     const twelveHours = 12 * 60 * 60 * 1000;
     const now = Date.now();
-    const validOrders = activeOrders.filter(active => (now - active.timestamp) <= twelveHours);
+    const validOrders = activeOrders.filter(active => {
+      const isRecent = (now - active.timestamp) <= twelveHours;
+      const status = active.orderData?.status || active.status;
+      const isDone = status === 'COMPLETED' || status === 'CANCELLED';
+      return isRecent && !isDone;
+    });
 
     if (validOrders.length === 0) {
       localStorage.removeItem('midori_active_order');
@@ -2948,7 +2959,7 @@ function checkActiveOrder() {
         onValue(orderRef, (snapshot) => {
           const data = snapshot.exists() ? snapshot.val() : null;
           const status = data ? (data.status || 'NEW') : 'DELETED';
-          if (!data || status === 'CANCELLED') {
+          if (!data || status === 'CANCELLED' || status === 'COMPLETED') {
             const bannerDiv = $(`active-banner-${index}`);
             if (bannerDiv) {
               bannerDiv.style.opacity = '0';
